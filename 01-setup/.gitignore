@@ -1,0 +1,6 @@
+# Runtime data directories
+infra/matchbox-data/
+matchbox-data/
+
+# Build artifacts
+_out/

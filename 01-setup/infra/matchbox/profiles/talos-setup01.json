@@ -1,0 +1,17 @@
+{
+  "id": "talos-setup01",
+  "name": "Talos Linux Setup01",
+  "boot": {
+    "kernel": "/assets/talos-kernel-amd64",
+    "initrd": ["/assets/talos-initramfs-amd64.xz"],
+    "args": [
+      "talos.platform=metal",
+      "initrd=talos-initramfs-amd64.xz",
+      "init_on_alloc=1",
+      "slab_nomerge",
+      "pti=on",
+      "console=tty0",
+      "printk.devkmsg=on"
+    ]
+  }
+}

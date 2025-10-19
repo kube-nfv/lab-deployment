@@ -1,0 +1,10 @@
+machine:
+  install:
+    disk: /dev/vda
+  kernel:
+    modules:
+      - name: openvswitch
+cluster:
+  network:
+    cni:
+      name: none

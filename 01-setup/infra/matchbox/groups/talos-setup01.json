@@ -1,0 +1,6 @@
+{
+  "id": "talos-setup01-all",
+  "name": "Talos Setup01 All Nodes",
+  "profile": "talos-setup01",
+  "selector": {}
+}
