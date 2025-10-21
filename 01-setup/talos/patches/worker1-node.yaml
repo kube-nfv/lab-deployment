@@ -1,0 +1,5 @@
+machine:
+  certSANs:
+    - worker1.setup01.local
+  network:
+    hostname: worker1

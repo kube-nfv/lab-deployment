@@ -1,0 +1,39 @@
+[Unit]
+Description=01-Setup Network Infrastructure
+After=docker.service openvswitch-switch.service
+Requires=docker.service openvswitch-switch.service
+PartOf=docker.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=/home/dmalovan/dev/github.com/kube-nfv/lab-deployments/01-setup/infra
+
+# Setup OVS bridge
+ExecStart=/usr/bin/ovs-vsctl --may-exist add-br 01-setup-net
+ExecStart=/usr/sbin/ip link set 01-setup-net up
+ExecStart=/bin/sh -c '/usr/sbin/ip addr add 10.0.10.1/24 dev 01-setup-net 2>/dev/null || true'
+ExecStart=/usr/sbin/sysctl -w net.ipv4.ip_forward=1
+
+# Setup NAT
+ExecStart=/bin/sh -c '/usr/sbin/iptables -t nat -C POSTROUTING -s 10.0.10.0/24 ! -d 10.0.10.0/24 -j MASQUERADE 2>/dev/null || /usr/sbin/iptables -t nat -A POSTROUTING -s 10.0.10.0/24 ! -d 10.0.10.0/24 -j MASQUERADE'
+
+# Wait for containers to be ready
+ExecStart=/bin/sleep 5
+
+# Connect DNSMasq container
+ExecStart=/bin/sh -c 'until /usr/bin/docker inspect dnsmasq-01-setup >/dev/null 2>&1; do sleep 1; done'
+ExecStart=/bin/sh -c '/usr/bin/ovs-docker del-port 01-setup-net eth0 dnsmasq-01-setup 2>/dev/null || true'
+ExecStart=/usr/bin/ovs-docker add-port 01-setup-net eth0 dnsmasq-01-setup --ipaddress=10.0.10.2/24 --gateway=10.0.10.1
+
+# Connect Matchbox container
+ExecStart=/bin/sh -c 'until /usr/bin/docker inspect matchbox-01-setup >/dev/null 2>&1; do sleep 1; done'
+ExecStart=/bin/sh -c '/usr/bin/ovs-docker del-port 01-setup-net eth0 matchbox-01-setup 2>/dev/null || true'
+ExecStart=/usr/bin/ovs-docker add-port 01-setup-net eth0 matchbox-01-setup --ipaddress=10.0.10.3/24 --gateway=10.0.10.1
+
+# Cleanup stale ports on stop
+ExecStop=/bin/sh -c '/usr/bin/ovs-docker del-port 01-setup-net eth0 dnsmasq-01-setup 2>/dev/null || true'
+ExecStop=/bin/sh -c '/usr/bin/ovs-docker del-port 01-setup-net eth0 matchbox-01-setup 2>/dev/null || true'
+
+[Install]
+WantedBy=multi-user.target

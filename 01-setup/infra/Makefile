@@ -19,7 +19,7 @@ TLS_DIR := $(CURDIR)/../tls
 
 GATEWAY_IP := 10.0.10.1
 
-.PHONY: help setup clean bridge dnsmasq matchbox matchbox-prepare verify
+.PHONY: help setup clean bridge dnsmasq matchbox matchbox-prepare verify install-service uninstall-service enable-service disable-service reconnect
 
 .DEFAULT_GOAL := help
 
@@ -77,7 +77,11 @@ dnsmasq: ## Create DNSMasq (10.0.10.2/24)
 		-v $(DNSMASQ_CONF):/etc/dnsmasq.conf:ro \
 		quay.io/poseidon/dnsmasq:v0.5.0-44-g91f75d9-amd64 \
 		-c "sleep 5 && exec /usr/sbin/dnsmasq -k"
-	sleep 2
+	@echo "Waiting for container network namespace..."
+	@for i in $$(seq 1 10); do \
+		docker exec $(DNSMASQ_CONTAINER) ip link show lo >/dev/null 2>&1 && break; \
+		sleep 1; \
+	done
 	sudo ovs-docker add-port $(BRIDGE_NAME) eth0 $(DNSMASQ_CONTAINER) \
 		--ipaddress=$(DNSMASQ_IP)/24 --gateway=$(GATEWAY_IP)
 	@echo "✓ DNSMasq created: $(DNSMASQ_IP)/24 (includes iPXE bootloaders)"
@@ -97,10 +101,45 @@ matchbox: matchbox-prepare ## Create Matchbox PXE server (10.0.10.3/24)
 		-address=0.0.0.0:8080 \
 		-rpc-address=0.0.0.0:8081 \
 		-log-level=debug
-	sleep 3
+	@echo "Waiting for container network namespace..."
+	@for i in $$(seq 1 10); do \
+		docker exec $(MATCHBOX_CONTAINER) ip link show lo >/dev/null 2>&1 && break; \
+		sleep 1; \
+	done
 	sudo ovs-docker add-port $(BRIDGE_NAME) eth0 $(MATCHBOX_CONTAINER) \
 		--ipaddress=$(MATCHBOX_IP)/24 --gateway=$(GATEWAY_IP)
 	@echo "✓ Matchbox created: $(MATCHBOX_IP)/24 (matchbox.setup01.local)"
+
+##@ Persistence
+
+install-service: ## Install systemd service for persistent networking
+	@echo "Installing systemd service..."
+	sudo cp $(CURDIR)/01-setup-net.service /etc/systemd/system/
+	sudo systemctl daemon-reload
+	@echo "✓ Service installed. Run 'make enable-service' to enable on boot"
+
+uninstall-service: disable-service ## Uninstall systemd service
+	@echo "Uninstalling systemd service..."
+	sudo rm -f /etc/systemd/system/01-setup-net.service
+	sudo systemctl daemon-reload
+	@echo "✓ Service uninstalled"
+
+enable-service: ## Enable service to run on boot
+	@echo "Enabling service..."
+	sudo systemctl enable 01-setup-net.service
+	@echo "✓ Service enabled. Network will be configured automatically on boot"
+
+disable-service: ## Disable service from running on boot
+	@echo "Disabling service..."
+	sudo systemctl disable 01-setup-net.service 2>/dev/null || true
+	sudo systemctl stop 01-setup-net.service 2>/dev/null || true
+	@echo "✓ Service disabled"
+
+reconnect: ## Reconnect containers to OVS bridge (manual fix after reboot)
+	@echo "Reconnecting containers to OVS bridge..."
+	@$(MAKE) clean-matchbox clean-dnsmasq
+	@$(MAKE) bridge dnsmasq matchbox
+	@echo "✓ Containers reconnected"
 
 ##@ Verification
 

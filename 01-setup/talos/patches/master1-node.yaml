@@ -1,0 +1,5 @@
+machine:
+  certSANs:
+    - master1.setup01.local
+  network:
+    hostname: master1

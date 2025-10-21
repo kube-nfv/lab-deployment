@@ -1,9 +1,15 @@
 machine:
   install:
     disk: /dev/vda
+    image: ghcr.io/kube-nfv/talos-installer:setup01-v1.0.1
   kernel:
     modules:
       - name: openvswitch
+      - name: drbd
+        parameters:
+          - usermode_helper=disabled
+      - name: drbd_transport_tcp
+      - name: zfs
 cluster:
   network:
     cni:
