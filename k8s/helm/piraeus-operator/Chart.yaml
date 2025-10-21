@@ -1,0 +1,8 @@
+apiVersion: v2
+name: piraeus-operator
+description: A Helm chart for Piraeus-operator
+version: 0.0.1
+dependencies:
+- name: piraeus
+  repository: https://dtrdnk.github.io/helm-charts
+  version: 2.2.0

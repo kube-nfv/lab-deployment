@@ -1,0 +1,6 @@
+dependencies:
+- name: piraeus
+  repository: https://dtrdnk.github.io/helm-charts
+  version: 2.2.0
+digest: sha256:a577d20ec198234d9ac301549eb5aecc315623604341e96304055d9c79413447
+generated: "2025-10-19T22:25:23.895612587+02:00"

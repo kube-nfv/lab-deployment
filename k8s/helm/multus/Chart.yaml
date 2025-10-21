@@ -1,0 +1,4 @@
+apiVersion: v2
+name: multus
+desciption: A Helm chart for installing Multus
+version: 0.0.1

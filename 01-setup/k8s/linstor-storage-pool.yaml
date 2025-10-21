@@ -1,0 +1,12 @@
+apiVersion: piraeus.io/v1
+kind: LinstorSatelliteConfiguration
+metadata:
+  name: zfs-storage
+spec:
+  storagePools:
+  - name: data
+    zfsPool:
+      zPool: data
+    source:
+      hostDevices:
+      - /dev/vdb

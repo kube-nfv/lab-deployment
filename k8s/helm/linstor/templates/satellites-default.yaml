@@ -1,0 +1,9 @@
+apiVersion: piraeus.io/v1
+kind: LinstorSatelliteConfiguration
+metadata:
+  name: default
+spec:
+  podTemplate:
+    spec:
+      # host-network is recommended by Piraeus while it is not default in the upstream
+      hostNetwork: true
