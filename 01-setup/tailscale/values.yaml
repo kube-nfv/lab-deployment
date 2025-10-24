@@ -1,0 +1,7 @@
+tailscale-operator:
+  operatorConfig:
+    defaultTags:
+    - "tag:setup01-operator"
+    hostname: "setup01-tailscale-operator"
+  proxyConfig:
+    defaultTags: "tag:setup01"
