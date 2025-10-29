@@ -1,0 +1,17 @@
+apiVersion: cdi.kubevirt.io/v1beta1
+kind: DataVolume
+metadata:
+  name: focal-server-cloudimg-amd64-test-block
+  namespace: kube-nfv
+spec:
+  storage:
+    accessModes:
+      - ReadWriteOnce
+    dataSourceRef:
+      apiGroup: cdi.kubevirt.io
+      kind: VolumeImportSource
+      name: focal-server-cloudimg-amd64
+    resources:
+      requests:
+        storage: 10Gi
+    storageClassName: replicated

@@ -1,0 +1,26 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: test-pod-replicated
+  namespace: default
+spec:
+  containers:
+  - name: test-container
+    image: busybox:latest
+    command:
+      - sh
+      - -c
+      - |
+        echo "Testing replicated storage" > /data/test.txt
+        echo "Write test completed at $(date)" >> /data/test.txt
+        cat /data/test.txt
+        echo "Sleeping for 3600 seconds..."
+        sleep 3600
+    volumeMounts:
+    - name: test-volume
+      mountPath: /data
+  volumes:
+  - name: test-volume
+    persistentVolumeClaim:
+      claimName: test-pvc-replicated
+  restartPolicy: Never

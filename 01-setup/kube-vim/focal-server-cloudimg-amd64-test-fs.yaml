@@ -1,0 +1,17 @@
+apiVersion: cdi.kubevirt.io/v1beta1
+kind: DataVolume
+metadata:
+  name: focal-server-cloudimg-amd64-test
+  namespace: kube-nfv
+spec:
+  source:
+    http:
+      url: "https://cloud-images.ubuntu.com/focal/current/focal-server-cloudimg-amd64.img"
+  storage:
+    accessModes:
+      - ReadWriteOnce
+    resources:
+      requests:
+        storage: 10Gi
+    storageClassName: replicated
+    volumeMode: Filesystem

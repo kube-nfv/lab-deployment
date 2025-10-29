@@ -1,0 +1,7 @@
+global:
+  image:
+    pullPolicy: Always
+vim:
+  config:
+    image:
+      storageClass: replicated

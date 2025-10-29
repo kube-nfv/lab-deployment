@@ -5708,7 +5708,7 @@ spec:
         - name: OPERATOR_VERSION
           value: v1.63.1
         - name: CONTROLLER_IMAGE
-          value: quay.io/kubevirt/cdi-controller:v1.63.1
+          value: ghcr.io/kube-nfv/cdi-controller:v1.63-dv-rec-fix
         - name: IMPORTER_IMAGE
           value: quay.io/kubevirt/cdi-importer:v1.63.1
         - name: CLONER_IMAGE
