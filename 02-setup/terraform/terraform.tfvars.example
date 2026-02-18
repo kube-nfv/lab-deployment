@@ -1,0 +1,13 @@
+project_id = "my-gcp-project-id"
+region     = "europe-central2"
+zone       = "europe-central2-a"
+
+cluster_name = "setup02-cluster"
+talos_image  = "projects/my-project/global/images/talos-v1-12-0"
+
+master_machine_type = "e2-standard-4"
+worker_machine_type = "e2-standard-8"
+
+allowed_cidrs = ["0.0.0.0/0"]
+
+boot_assets_bucket_name = "setup02-boot-assets"

@@ -1,0 +1,52 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: test-pod-mgmtnet-ssh
+  namespace: kube-nfv
+  annotations:
+    k8s.v1.cni.cncf.io/networks: mgmtnet-subnet-0-netattach
+    mgmtnet-subnet-0-netattach.kube-nfv.ovn.kubernetes.io/logical_switch: mgmtnet-subnet-0
+spec:
+  containers:
+  - name: ssh-client
+    image: alpine:latest
+    command:
+      - sh
+      - -c
+      - |
+        # Install SSH client and network tools
+        apk add --no-cache openssh-client iproute2 curl wget netcat-openbsd iputils tcpdump bind-tools iperf3
+
+        # Display network configuration
+        echo "=== Network Interfaces ==="
+        ip addr show
+        echo ""
+        echo "=== IP Routes ==="
+        ip route show
+        echo ""
+        echo "=== Multus Network Status ==="
+        cat /etc/podinfo/annotations 2>/dev/null || echo "Annotations not available"
+        echo ""
+        echo "=== Pod ready for SSH client testing ==="
+        echo "Available tools: ssh, scp, curl, wget, nc, ping, traceroute, tcpdump, dig, iperf3"
+        echo ""
+
+        # Keep container running
+        echo "Sleeping indefinitely... Use 'kubectl exec' to access the pod"
+        sleep infinity
+    securityContext:
+      capabilities:
+        add:
+        - NET_ADMIN
+        - NET_RAW
+    volumeMounts:
+    - name: podinfo
+      mountPath: /etc/podinfo
+  volumes:
+  - name: podinfo
+    downwardAPI:
+      items:
+      - path: "annotations"
+        fieldRef:
+          fieldPath: metadata.annotations
+  restartPolicy: Always

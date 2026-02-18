@@ -1,0 +1,32 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: disk-inspector
+  namespace: kube-nfv
+spec:
+  containers:
+  - name: inspector
+    image: ubuntu:22.04
+    command: ["sleep", "infinity"]
+    volumeDevices:
+    - name: disk
+      devicePath: /dev/diskdata
+    securityContext:
+      privileged: true
+      allowPrivilegeEscalation: true
+      runAsNonRoot: false
+      capabilities:
+        add:
+        - SYS_ADMIN
+        - SYS_RAWIO
+      seccompProfile:
+        type: Unconfined
+  volumes:
+  - name: disk
+    persistentVolumeClaim:
+      claimName: test-vnf-test-vm-0-boot-dv
+  restartPolicy: Never
+  securityContext:
+    runAsNonRoot: false
+    seccompProfile:
+      type: Unconfined

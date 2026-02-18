@@ -4,3 +4,8 @@ creation_rules:
     key_groups:
       - age:
           - age144ehqvphpdmvkpntzu56wphw9rrezpu8j0j3kccq8lq2ufc9c96ss3fnkt # Dmytro Malovanyi
+  # Rule for setup-02
+  - path_regex: 02-setup/.*\.(ya?ml|key|tfstate|tfvars)$
+    key_groups:
+      - age:
+          - age144ehqvphpdmvkpntzu56wphw9rrezpu8j0j3kccq8lq2ufc9c96ss3fnkt # Dmytro Malovanyi
