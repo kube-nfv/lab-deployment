@@ -1,0 +1,44 @@
+[Unit]
+Description=02-Setup Edge Network Infrastructure
+After=docker.service openvswitch-switch.service
+Requires=docker.service openvswitch-switch.service
+PartOf=docker.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=/home/dmalovan/dev/github.com/kube-nfv/lab-deployments/02-setup/infra
+
+# Setup OVS bridge
+ExecStart=/usr/bin/ovs-vsctl --may-exist add-br setup02-edge
+ExecStart=/usr/sbin/ip link set setup02-edge up
+ExecStart=/bin/sh -c '/usr/sbin/ip addr add 10.0.20.1/24 dev setup02-edge 2>/dev/null || true'
+ExecStart=/usr/sbin/sysctl -w net.ipv4.ip_forward=1
+
+# Setup NAT
+ExecStart=/bin/sh -c '/usr/sbin/iptables -t nat -C POSTROUTING -s 10.0.20.0/24 ! -d 10.0.20.0/24 -j MASQUERADE 2>/dev/null || /usr/sbin/iptables -t nat -A POSTROUTING -s 10.0.20.0/24 ! -d 10.0.20.0/24 -j MASQUERADE'
+
+# Start DNSMasq container (or recreate if stopped)
+ExecStart=/bin/sh -c '/usr/bin/docker rm -f dnsmasq-02-setup 2>/dev/null || true'
+ExecStart=/usr/bin/docker run -d \
+    --name dnsmasq-02-setup \
+    --network none \
+    --cap-add NET_ADMIN \
+    --entrypoint /bin/sh \
+    -v /home/dmalovan/dev/github.com/kube-nfv/lab-deployments/02-setup/infra/dnsmasq.conf:/etc/dnsmasq.conf:ro \
+    quay.io/poseidon/dnsmasq:v0.5.0-44-g91f75d9-amd64 \
+    -c "sleep 5 && exec /usr/sbin/dnsmasq -k"
+
+# Wait for container to be running
+ExecStart=/bin/sh -c 'until [ "$(/usr/bin/docker inspect -f "{{.State.Running}}" dnsmasq-02-setup 2>/dev/null)" = "true" ]; do sleep 1; done'
+
+# Connect DNSMasq to OVS bridge
+ExecStart=/bin/sh -c '/usr/bin/ovs-docker del-port setup02-edge eth0 dnsmasq-02-setup 2>/dev/null || true'
+ExecStart=/usr/bin/ovs-docker add-port setup02-edge eth0 dnsmasq-02-setup --ipaddress=10.0.20.2/24 --gateway=10.0.20.1
+
+# Cleanup on stop
+ExecStop=/bin/sh -c '/usr/bin/ovs-docker del-port setup02-edge eth0 dnsmasq-02-setup 2>/dev/null || true'
+ExecStop=/bin/sh -c '/usr/bin/docker rm -f dnsmasq-02-setup 2>/dev/null || true'
+
+[Install]
+WantedBy=multi-user.target

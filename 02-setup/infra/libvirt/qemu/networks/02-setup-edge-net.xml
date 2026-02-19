@@ -1,0 +1,6 @@
+<network>
+  <name>setup02-edge</name>
+  <forward mode='bridge'/>
+  <bridge name='setup02-edge'/>
+  <virtualport type='openvswitch'/>
+</network>

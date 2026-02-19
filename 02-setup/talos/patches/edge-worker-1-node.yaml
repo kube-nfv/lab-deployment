@@ -1,0 +1,8 @@
+machine:
+  install:
+    disk: /dev/vda
+---
+apiVersion: v1alpha1
+kind: HostnameConfig
+hostname: setup02-edge-worker-1
+auto: off
