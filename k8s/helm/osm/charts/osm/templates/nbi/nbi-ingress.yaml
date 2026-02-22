@@ -1,0 +1,51 @@
+{{- if .Values.nbi.enabled -}}
+#######################################################################################
+# Copyright ETSI Contributors and Others.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+# implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#######################################################################################
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: nbi-ingress
+  labels:
+    {{- include "osm.labels" . | nindent 4 }}
+  annotations:
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+spec:
+  ingressClassName: {{ .Values.global.ingressClassName | default "nginx" }}
+  rules:
+{{- if .Values.nbi.ingress.host }}
+  - host: {{ .Values.nbi.ingress.host }}
+{{- else }}
+  - host: "nbi.{{ .Values.global.hostname }}"
+{{- end }}
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: nbi
+            port:
+              number: 9999
+  tls:
+    - hosts:
+    {{- if .Values.nbi.ingress.host }}
+      - {{ .Values.nbi.ingress.host }}
+    {{- else }}
+      - "nbi.{{ .Values.global.hostname }}"
+    {{- end }}
+      secretName: nbi-cert
+{{- end }}

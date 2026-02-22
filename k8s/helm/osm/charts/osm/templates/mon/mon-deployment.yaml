@@ -1,0 +1,124 @@
+{{- if .Values.mon.enabled -}}
+#######################################################################################
+# Copyright ETSI Contributors and Others.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+# implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#######################################################################################
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mon
+  labels:
+    {{- include "osm.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.mon.replicaCount | default .Values.global.replicaCount }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: mon
+      {{- include "osm.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.global.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        app.kubernetes.io/component: mon
+        {{- include "osm.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "osm.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.global.podSecurityContext | nindent 8 }}
+      initContainers:
+        - name: kafka-mongo-test
+          image: alpine:latest
+          command: ["sh", "-c", "until (nc -zvw1 kafka 9092 && nc -zvw1 {{ .Values.global.db.mongo.mongoService }} 27017); do sleep 3; done; exit 0"]
+      containers:
+        - name: mon
+          securityContext:
+            # readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            {{- toYaml .Values.global.securityContext | nindent 12 }}
+          image: {{ include "osm.mon.image" . }}
+          imagePullPolicy: {{ .Values.global.image.pullPolicy }}
+          ports:
+            - containerPort: 8662
+              protocol: TCP
+          resources:
+            limits:
+              memory: 1024Mi
+            requests:
+              memory: 128Mi
+          envFrom:
+            - configMapRef:
+                name: {{ include "osm.fullname" . }}-mon-configmap
+          {{- if not .Values.mon.useOsmSecret }}
+            - secretRef:
+                name: {{ .Values.mon.secretName | default "mon-secret" }}
+          {{- end }}
+          {{- if or .Values.vca.enabled .Values.mon.useOsmSecret }}
+          env:
+            - name: OSMMON_GRAFANA_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: grafana
+                  key: admin-password
+            {{- if .Values.vca.enabled }}
+            - name: OSMMON_VCA_HOST
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "osm.fullname" . }}-vca-secret
+                  key: OSM_VCA_HOST
+            - name: OSMMON_VCA_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "osm.fullname" . }}-vca-secret
+                  key: OSM_VCA_SECRET
+            - name: OSMMON_VCA_CACERT
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "osm.fullname" . }}-vca-secret
+                  key: OSM_VCA_CACERT
+            {{- end }}
+            {{- if .Values.mon.useOsmSecret }}
+            - name: OSMMON_DATABASE_COMMONKEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "osm.fullname" . }}-secret
+                  key: OSM_DATABASE_COMMONKEY
+            - name: OSMMON_DATABASE_URI
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "osm.fullname" . }}-secret
+                  key: OSM_DATABASE_URI
+            {{- end }}
+          {{- end }}
+      {{- with .Values.global.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.global.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.global.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+{{- end }}

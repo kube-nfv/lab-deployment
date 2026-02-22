@@ -1,0 +1,4 @@
+apiVersion: v2
+name: osm
+description: Open Source MANO umbrella chart
+version: 0.0.1

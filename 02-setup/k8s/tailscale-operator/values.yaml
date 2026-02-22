@@ -3,5 +3,7 @@ tailscale-operator:
     defaultTags:
     - "tag:setup02-operator"
     hostname: "setup02-tailscale-operator"
+    nodeSelector:
+      node.kubernetes.io/location: cloud
   proxyConfig:
     defaultTags: "tag:setup02-k8s"

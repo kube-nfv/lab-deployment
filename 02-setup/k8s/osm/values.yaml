@@ -1,0 +1,72 @@
+osm:
+  global:
+    hostname: "ingress-nginx-ingress-nginx-controller.tailac05db.ts.net"
+    ingressClassName: nginx
+    gitops:
+      enabled: false
+    nodeSelector:
+      node.kubernetes.io/location: cloud
+
+  mongodb:
+    nodeSelector:
+      node.kubernetes.io/location: cloud
+    arbiter:
+      nodeSelector:
+        node.kubernetes.io/location: cloud
+    persistence:
+      storageClass: "pd-standard"
+      size: 8Gi
+
+  kafka:
+    controller:
+      nodeSelector:
+        node.kubernetes.io/location: cloud
+      persistence:
+        storageClass: "pd-standard"
+        size: 8Gi
+
+  prometheus:
+    server:
+      nodeSelector:
+        node.kubernetes.io/location: cloud
+      persistentVolume:
+        storageClass: "pd-standard"
+        size: 8Gi
+    alertmanager:
+      nodeSelector:
+        node.kubernetes.io/location: cloud
+    prometheus-pushgateway:
+      nodeSelector:
+        node.kubernetes.io/location: cloud
+
+  grafana:
+    nodeSelector:
+      node.kubernetes.io/location: cloud
+    persistence:
+      enabled: true
+      storageClassName: "pd-standard"
+      size: 2Gi
+
+  airflow:
+    nodeSelector:
+      node.kubernetes.io/location: cloud
+    scheduler:
+      nodeSelector:
+        node.kubernetes.io/location: cloud
+    webserver:
+      nodeSelector:
+        node.kubernetes.io/location: cloud
+    triggerer:
+      nodeSelector:
+        node.kubernetes.io/location: cloud
+    workers:
+      nodeSelector:
+        node.kubernetes.io/location: cloud
+      persistence:
+        storageClassName: "pd-standard"
+    postgresql:
+      primary:
+        nodeSelector:
+          node.kubernetes.io/location: cloud
+        persistence:
+          storageClass: "pd-standard"

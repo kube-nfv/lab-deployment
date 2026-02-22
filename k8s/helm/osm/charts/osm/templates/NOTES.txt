@@ -1,0 +1,38 @@
+{{/*
+#######################################################################################
+# Copyright ETSI Contributors and Others.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+# implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#######################################################################################
+*/}}
+1. Get the application URL by running these commands:
+{{- if .Values.nbi.service }}
+{{- if contains "NodePort" .Values.nbi.service.type }}
+  export NODE_PORT=$(kubectl get --namespace {{ .Release.Namespace }} -o jsonpath="{.spec.ports[0].nodePort}" services nbi)
+  export NODE_IP=$(kubectl get nodes --namespace {{ .Release.Namespace }} -o jsonpath="{.items[0].status.addresses[0].address}")
+  echo http://$NODE_IP:$NODE_PORT
+{{- else if contains "LoadBalancer" .Values.nbi.service.type }}
+     NOTE: It may take a few minutes for the LoadBalancer IP to be available.
+           You can watch the status of by running 'kubectl get --namespace {{ .Release.Namespace }} svc -w nbi'
+  export SERVICE_IP=$(kubectl get svc --namespace {{ .Release.Namespace }} nbi --template "{{"{{ range (index .status.loadBalancer.ingress 0) }}{{.}}{{ end }}"}}")
+  echo http://$SERVICE_IP:{{ .Values.nbi.service.port }}
+{{- end }}
+{{- else }}
+  export OSM_GUI_URL=$(kubectl get --namespace {{ .Release.Namespace }} -o jsonpath="{.spec.rules[0].host}" ingress ngui-ingress)
+  echo "OSM UI: $OSM_GUI_URL"
+  export OSM_HOSTNAME=$(kubectl get --namespace {{ .Release.Namespace }} -o jsonpath="{.spec.rules[0].host}" ingress nbi-ingress)
+  echo "OSM_HOSTNAME (for osm client): $OSM_HOSTNAME"
+{{- end }}
+2. Get Grafana credentials for admin user using below command.
+  kubectl -n {{ .Release.Namespace }}  get secret grafana -o jsonpath="{.data.admin-password}" | base64 --decode ; echo

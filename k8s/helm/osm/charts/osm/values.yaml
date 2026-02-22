@@ -1,0 +1,684 @@
+#######################################################################################
+# Copyright ETSI Contributors and Others.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+# implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#######################################################################################
+# Default values for osm.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+global:
+  replicaCount: 1
+  logLevel: INFO
+  # hostname to be used for the ingress objects
+  hostname: ~
+  image:
+    repositoryBase: docker.io/opensourcemano
+    pullPolicy: IfNotPresent
+    # Overrides the image tag whose default is the chart appVersion.
+    tag: "testing-daily"
+
+  imagePullSecrets: []
+  nameOverride: ""
+  fullnameOverride: ""
+  # ingressClassName: "nginx"
+
+  serviceAccount:
+    # Specifies whether a service account should be created
+    create: true
+    # Annotations to add to the service account
+    annotations: {}
+    # The name of the service account to use.
+    # If not set and create is true, a name is generated using the fullname template
+    name: ""
+
+  db:
+    mysql:
+      mysqlSecretName: mysql
+      mysqlSecretKey: mysql-root-password
+      mysqlService: mysql
+    mongo:
+      mongoService: mongodb-k8s
+      auth:
+        enabled: false
+        # secretName: mongodb-k8s
+        # secretKeyRootPassword: mongodb-root-password
+
+  gitops:
+    enabled: true
+    auxcluster:
+      secretName: auxcluster-secret
+      secretKey: kubeconfig
+    mgmtcluster:
+      secretName: mgmtcluster-secret
+      secretKey: kubeconfig
+    gitUser: osm-developer
+    # gitBaseUrl: http://git.<IP_ADDRESS>.nip.io
+    # pubkey: AGEKEY
+    # fleetRepoUrl: http://git.<IP_ADDRESS>.nip.io
+    # swcatalogsRepoUrl: http://git.<IP_ADDRESS>.nip.io
+
+  podAnnotations: {}
+
+  podSecurityContext:
+    # runAsUser: 1000
+    # runAsGroup: 1000
+    fsGroup: 1000
+
+  securityContext:
+    runAsUser: 1000
+
+  nodeSelector: {}
+
+  tolerations: []
+
+  affinity: {}
+
+  behindHttpProxy: false
+  httpProxy: {}
+    # HTTP_PROXY: <HTTP_PROXY>
+    # HTTPS_PROXY: <HTTPS_PROXY>
+    # NO_PROXY: <NO_PROXY>
+
+airflow:
+  enabled: true
+  fullnameOverride: "airflow"
+  config:
+    core:
+      parallelism: 4
+      dag_concurrency: 2
+      max_active_tasks_per_dag: 2
+      worker_concurrency: 2
+      dags_folder: "/home/airflow/.local/lib/python3.10/site-packages/osm_ngsa"
+  defaultAirflowRepository: opensourcemano/airflow
+  defaultAirflowTag: "testing-daily"
+  executor: LocalExecutor
+  extraEnv: |
+    - name: AIRFLOW__API__AUTH_BACKENDS
+      value: 'airflow.api.auth.backend.basic_auth'
+    - name: AIRFLOW__LOGGING__LOGGING_LEVEL
+      value: 'INFO'
+    - name: OSMMON_DATABASE_COMMONKEY
+      valueFrom:
+        secretKeyRef:
+          name: osm-secret
+          key: OSM_DATABASE_COMMONKEY
+  # extraEnvFrom: |
+  #   - secretRef:
+  #       name: ngsa-secret
+  ingress:
+    web:
+      enabled: True
+      # hosts:
+      #   - name: "localhost"
+      ingressClassName: nginx
+  postgresql:
+    image:
+      repository: bitnamilegacy/postgresql
+      tag: 11
+  # scheduler:
+  #   resources:
+  #     requests:
+  #       memory: 512Mi
+  #       cpu: 250m
+  #     limits:
+  #       memory: 1Gi
+  #       cpu: 500m
+  webserverSecretKeySecretName: airflow-webserver-secret
+  webserver:
+    resources:
+      requests:
+        memory: 256Mi
+        cpu: 250m
+      limits:
+        memory: 1Gi
+        cpu: 500m
+    service:
+      type: ClusterIP
+      ports:
+        - name: airflow-ui
+          port: "{{ .Values.ports.airflowUI }}"
+          targetPort: "{{ .Values.ports.airflowUI }}"
+  workers:
+    persistence:
+      size: 2Gi
+    replicas: 1
+    resources:
+      requests:
+        memory: 512Mi
+        cpu: 250m
+      limits:
+        memory: 1Gi
+        cpu: 500m
+    logGroomerSidecar:
+      retentionDays: 7
+      resources:
+        limits:
+          cpu: 100m
+          memory: 128Mi
+        requests:
+          cpu: 100m
+          memory: 128Mi
+
+alertmanager:
+  enabled: true
+  ingress: {}
+  #   host: alertmanager.<IP_ADDRESS>.nip.io
+
+certauth:
+  enabled: true
+
+grafana:
+  enabled: true
+  fullnameOverride: "grafana"
+  # service:
+  #   type: NodePort
+  #   nodePort: 3000
+  #   port: 3000
+  ingress:
+    enabled: true
+    ingressClassName: nginx
+    # hosts:
+    #   - grafana.<IP_ADDRESS>.nip.io
+    annotations:
+      nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    # tls:
+    #  - secretName: grafana-cert
+    #    hosts:
+    #      - grafana.<IP_ADDRESS>.nip.io
+  extraVolumes:
+    - emptyDir: {}
+      name: sc-dashboard-volume-k8s
+    - emptyDir: {}
+      name: sc-dashboard-volume-osm
+  extraVolumeMounts:
+    - name: sc-dashboard-volume-k8s
+      mountPath: "/tmp/dashboards/Kubernetes Cluster"
+    - name: sc-dashboard-volume-osm
+      mountPath: "/tmp/dashboards/Open Source MANO"
+  rbac:
+    extraClusterRoleRules:
+    - apiGroups:
+      - ""
+      resources:
+      - configmaps
+      - secrets
+      verbs:
+      - get
+      - watch
+      - list
+  datasources:
+    datasource.yaml:
+      apiVersion: 1
+      datasources:
+      - name: osm_prometheus
+        type: prometheus
+        url: http://prometheus:9090
+        access: proxy
+        allowUiUpdates: true
+        isDefault: true
+      - name: Prometheus
+        type: prometheus
+        url: http://osm-monitoring-kube-promet-prometheus.monitoring:9090
+        access: proxy
+        allowUiUpdates: true
+        isDefault: false
+  dashboardProviders:
+    provider.yaml:
+     apiVersion: 1
+     providers:
+     - name: 'Kubernetes Cluster'
+       orgId: 1
+       folder: 'Kubernetes Cluster'
+       type: file
+       disableDeletion: false
+       options:
+         path: '/tmp/dashboards/Kubernetes Cluster'
+     - name: 'Open Source MANO'
+       orgId: 1
+       folder: 'Open Source MANO'
+       type: file
+       disableDeletion: false
+       options:
+         path: '/tmp/dashboards/Open Source MANO'
+  sidecar:
+    dashboards:
+      enabled: true
+      folder: "/tmp/dashboards/"
+      resource: both
+      searchNamespace: osm
+      extraMounts:
+        - name: sc-dashboard-volume-k8s
+          mountPath: "/tmp/dashboards/Kubernetes Cluster"
+        - name: sc-dashboard-volume-osm
+          mountPath: "/tmp/dashboards/Open Source MANO"
+  extraInitContainers:
+    - env:
+      - name: METHOD
+        value: LIST
+      - name: LABEL
+        value: grafana_datasource
+      - name: FOLDER
+        value: /etc/grafana/provisioning/datasources
+      - name: RESOURCE
+        value: both
+      image: kiwigrid/k8s-sidecar:1.15.6
+      imagePullPolicy: IfNotPresent
+      name: grafana-sc-datasources
+      resources: {}
+      terminationMessagePath: /dev/termination-log
+      terminationMessagePolicy: File
+      volumeMounts:
+      - mountPath: /etc/grafana/provisioning/datasources
+        name: config
+
+kafka:
+  enabled: true
+  image:
+    registry: docker.io
+    repository: bitnamilegacy/kafka
+    tag: 3.8.0-debian-12-r5
+  listeners:
+    client:
+      protocol: "PLAINTEXT"
+  fullnameOverride: "kafka"
+  replicaCount: 1
+  controller:
+    replicaCount: 1
+    resources:
+      limits:
+        memory: 1024Mi
+    heapOpts: -Xmx768m -Xms768m
+  extraConfigYaml:
+    default.replication.factor: 1
+    offsets.topic.replication.factor: 1
+    transaction.state.log.replication.factor: 1
+    transaction.state.log.min.isr: 1
+
+keystone:
+  enabled: false
+  service:
+    port: 5000
+  image: {}
+    # repository: opensourcemano/keystone
+    # tag: "testing-daily"
+  # replicaCount: 1
+  useOsmSecret: true
+  # secretName: "keystone-secret"
+
+lcm:
+  enabled: true
+  logLevel: DEBUG
+  image: {}
+    # repository: opensourcemano/lcm
+    # tag: "testing-daily"
+  # replicaCount: 1
+  useOsmSecret: true
+  # secretName: "lcm-secret"
+  config:
+    OSMLCM_VCA_CLOUD: "lxd-cloud"
+    OSMLCM_VCA_K8S_CLOUD: "k8scloud"
+    # OSMLCM_VCA_APIPROXY: "<VCA API proxy>"
+    # OSMLCM_VCA_ENABLEOSUPGRADE: true
+    # OSMLCM_VCA_APTMIRROR: "http://archive.ubuntu.com/ubuntu/"
+
+mon:
+  enabled: true
+  # logLevel: DEBUG
+  image: {}
+    # repository: opensourcemano/mon
+    # tag: "testing-daily"
+  # replicaCount: 1
+  useOsmSecret: true
+  # secretName: "mon-secret"
+  config: {}
+
+mongodb:
+  enabled: true
+  fullnameOverride: "mongodb-k8s"
+  replicaCount: 1
+  service:
+    nameOverride: "mongodb-k8s"
+  auth:
+    enabled: false
+  architecture: "replicaset"
+  livenessProbe:
+    initialDelaySeconds: 60
+    periodSeconds: 30
+    timeoutSeconds: 10
+    failureThreshold: 10
+    successThreshold: 1
+  readinessProbe:
+    initialDelaySeconds: 60
+    periodSeconds: 30
+    timeoutSeconds: 10
+    failureThreshold: 10
+    successThreshold: 1
+  resourcesPreset: "none"
+  arbiter:
+    resourcesPreset: "none"
+
+mysql:
+  enabled: false
+  image:
+    tag: "8.1-debian-11"
+  fullnameOverride: "mysql"
+
+nbi:
+  enabled: true
+  ingress: {}
+  #   host: nbi.<IP_ADDRESS>.nip.io
+  logLevel: DEBUG
+  service: {}
+  #   type: NodePort
+  #   port: 9999
+  #   nodePort: 9999
+  image: {}
+    # repository: opensourcemano/nbi
+    # tag: "testing-daily"
+  # replicaCount: 1
+  useOsmSecret: true
+  # secretName: "nbi-secret"
+  smtp:
+    enabled: false
+    server: ""
+    port: ""
+    senderEmail: ""
+    otpRetryCount: 3
+    otpExpiryTime: 300
+    secretName: "osmnbi-email-password"
+    secretKey: "OSMNBI_EMAIL_PASSWORD"
+
+
+ngui:
+  enabled: true
+  service: {}
+  #   type: NodePort
+  #   port: 80
+  #   nodePort: 80
+  ingress: {}
+  #   host: <IP_ADDRESS>.nip.io
+  image: {}
+    # repository: opensourcemano/ng-ui
+    # tag: "testing-daily"
+  # replicaCount: 1
+
+prometheus:
+  enabled: true
+  configmapReload:
+    prometheus:
+      enabled: true
+  prometheus-node-exporter:
+    enabled: false
+  kube-state-metrics:
+    enabled: false
+  server:
+    extraFlags:
+      - web.enable-lifecycle
+    statefulSet:
+      enabled: true
+    configPath: /etc/prometheus/prometheus.yml
+    fullnameOverride: "prometheus"
+    service:
+      servicePort: 9090
+    #   type: NodePort
+    #   nodePort: 9091
+    ingress:
+      enabled: true
+      ingressClassName: nginx
+      # hosts:
+      #   - prometheus.<IP_ADDRESS>.nip.io
+      annotations:
+        nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+      # tls:
+      #  - secretName: prometheus-cert
+      #    hosts:
+      #      - prometheus.<IP_ADDRESS>.nip.io
+    sidecarContainers:
+      prometheus-config-sidecar:
+        securityContext:
+          # readOnlyRootFilesystem: true
+          allowPrivilegeEscalation: false
+          # runAsNonRoot: true
+        image: opensourcemano/prometheus:testing-daily
+        imagePullPolicy: IfNotPresent
+        command: ["/bin/sh", "-c"]
+        args: ["sleep 50; python -u ./app.py"]
+        volumeMounts:
+          - name: prom-config
+            mountPath: /etc/prometheus
+          - name: prom-config-base
+            mountPath: /etc/prometheus_base
+        resources:
+          limits:
+            memory: 1024Mi
+          requests:
+            memory: 128Mi
+        envFrom:
+          - configMapRef:
+              name: osm-prometheus-sidecar-configmap
+    extraInitContainers:
+      - name: prometheus-init-config
+        image: busybox
+        command: ["/bin/sh", "-c"]
+          #args: [' sleep 100000 ']
+        args: ['if [ ! -f "/etc/prometheus/prometheus.yml" ]; then cp /config/prometheus.yml /etc/prometheus; fi; cp /config/osm_metric_rules.yml /config/osm_alert_rules.yml /etc/prometheus']
+        volumeMounts:
+          - name: prom-config
+            mountPath: /etc/prometheus
+          - name: prom-config-base
+            mountPath: /config
+    extraVolumeMounts:
+      - name: prom-config
+        mountPath: /etc/prometheus
+    extraVolumes:
+      - name: prom-config
+        emptyDir: {}
+      - name: prom-config-base
+        projected:
+          sources:
+            - configMap:
+                name: osm-prom-configmap
+                items:
+                  - key: prometheus.yml
+                    path: prometheus.yml
+            - configMap:
+                name: osm-prometheus-recordingrules-configmap
+                items:
+                  - key: osm_metric_rules.yml
+                    path: osm_metric_rules.yml
+            - configMap:
+                name: osm-prometheus-alertingrules-configmap
+                items:
+                  - key: osm_alert_rules.yml
+                    path: osm_alert_rules.yml
+  extraManifests:
+    - |
+      apiVersion: v1
+      kind: ConfigMap
+      metadata:
+        name: osm-prometheus-alertingrules-configmap
+      data:
+        osm_alert_rules.yml: |
+          groups:
+            - name: osm_alert_rules
+              rules:
+              - alert: vdu_down
+                expr: vm_status_extended != 1
+                for: 3m
+                annotations:
+                  summary: "VDU {{ "{{" }} $labels.vm_id }} in VIM {{ "{{" }} $labels.vim_id }} is down"
+                  description: "VDU {{ "{{" }} $labels.vm_id }} in VIM {{ "{{" }} $labels.vim_id }} has been down for more than 3 minutes. NS instance id is {{ "{{" }} $labels.ns_id }}"
+    - |
+      apiVersion: v1
+      kind: ConfigMap
+      metadata:
+        name: osm-prometheus-recordingrules-configmap
+      data:
+        osm_metric_rules.yml: |
+          groups:
+            - name: osm_metric_rules
+              rules:
+              - record: vm_status_extended
+                expr: (last_over_time(vm_status[1m]) * on (vm_id, vim_id) group_left(ns_id, vnf_id, vdu_id, project_id, job, vdu_name, ns_name, vnf_member_index) last_over_time(ns_topology[1m])) or (last_over_time(ns_topology[1m]) * -1)
+                labels:
+                  job: osm_prometheus
+              - record: vnf_status
+                expr: (0 * (count (vm_status_extended==0) by (ns_id, vnf_id)>=0)) or (min by (ns_id, vnf_id) (vm_status_extended))
+                labels:
+                  job: osm_prometheus
+              - record: ns_status
+                expr: (0 * (count (vm_status_extended==0) by (ns_id)>=0)) or (min by (ns_id) (vm_status_extended))
+                labels:
+                  job: osm_prometheus
+    - |
+      apiVersion: v1
+      kind: ConfigMap
+      metadata:
+        name: osm-prometheus-sidecar-configmap
+      data:
+        MONGODB_URL: "mongodb://mongodb-k8s:27017/?replicaSet=rs0"
+        PROMETHEUS_CONFIG_FILE: "/etc/prometheus/prometheus.yml"
+        PROMETHEUS_BASE_CONFIG_FILE: "/etc/prometheus_base/prometheus.yml"
+        TARGET_DATABASE: "osm"
+        PROMETHEUS_URL: "http://prometheus:9090"
+    - |
+      apiVersion: v1
+      kind: ConfigMap
+      metadata:
+        name: osm-prom-configmap
+      data:
+        prometheus.yml: |
+          global:
+            scrape_interval:     15s # Set the scrape interval to every 15 seconds. Default is every 1 minute.
+            evaluation_interval: 15s # Evaluate rules every 15 seconds. The default is every 1 minute.
+            # scrape_timeout is set to the global default (10s).
+          # Alertmanager configuration
+          alerting:
+            alertmanagers:
+            - static_configs:
+              - targets:
+                - alertmanager:9093
+          rule_files:
+            - "osm_metric_rules.yml"
+            - "osm_alert_rules.yml"
+          scrape_configs:
+            - job_name: 'mon_exporter'
+              static_configs:
+              - targets: ['mon:8000']
+            - job_name: pushgateway
+              honor_labels: true
+              scrape_interval: 30s
+              static_configs:
+              - targets:
+                - pushgateway-prometheus-pushgateway:9091
+            - job_name: prometheus
+              static_configs:
+                - targets:
+                  - localhost:9090
+            - job_name: node
+              static_configs:
+                - targets: ['prometheus-node-exporter:9100']
+  alertmanager:
+    enabled: true
+    fullnameOverride: "alertmanager"
+    extraArgs:
+      log.level: debug
+    # service:
+    #   type: NodePort
+    #   nodePort: 9093
+    #   port: 9093
+    # ingress:
+    #   enabled: True
+    #   className: nginx
+    #   hosts:
+    #     - host: localhost
+    #       paths:
+    #         - path: /
+    #           pathType: ImplementationSpecific
+    #   tls: []
+    config:
+      receivers:
+        - name: default-receiver
+        - name: vdu-webhook
+          webhook_configs:
+           - url: http://webhook-translator:9998/vdu_down
+        - name: scaleout-webhook
+          webhook_configs:
+           - url: http://webhook-translator:9998/scaleout_vdu
+        - name: scalein-webhook
+          webhook_configs:
+           - url: http://webhook-translator:9998/scalein_vdu
+        - name: alarm-webhook
+          webhook_configs:
+           - url: http://webhook-translator:9998/vdu_alarm
+      route:
+        group_wait: 10s
+        group_interval: 2m
+        receiver: default-receiver
+        routes:
+        - receiver: vdu-webhook
+          repeat_interval: 15m
+          matchers:
+          - alertname = "vdu_down"
+        - receiver: 'scaleout-webhook'
+          repeat_interval: 5m
+          matchers:
+          - alertname =~ "^scaleout_.*"
+        - receiver: 'scalein-webhook'
+          repeat_interval: 5m
+          matchers:
+          - alertname =~ "^scalein_.*"
+        - receiver: 'alarm-webhook'
+          repeat_interval: 5m
+          matchers:
+          - alertname =~ "^vdu_alarm_.*"
+  prometheus-pushgateway:
+    fullnameOverride: "pushgateway-prometheus-pushgateway"
+
+ro:
+  enabled: true
+  # logLevel: DEBUG
+  service:
+    port: 9090
+  image: {}
+    # repository: opensourcemano/ro
+    # tag: "testing-daily"
+  # replicaCount: 1
+  useOsmSecret: true
+  # secretName: "ro-secret"
+
+vca:
+  enabled: false
+  # host: ""
+  # secret: ""
+  # cacert: ""
+  # pubkey: ""
+
+webhookTranslator:
+  enabled: true
+  # replicaCount: 1
+  image: {}
+    # repository: opensourcemano/webhook
+    # tag: "testing-daily"
+  ingress: {}
+  #   host: webhook.<IP_ADDRESS>.nip.io
+  # replicaCount: 1
+  service: {}
+  #   type: NodePort
+  #   nodePort: 9998
+  #   port: 9998
+  config:
+    airflowHost: "osm-webserver"
+    # airflowPort: "8080"

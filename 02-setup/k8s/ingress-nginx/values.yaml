@@ -1,0 +1,6 @@
+ingress-nginx:
+  controller:
+    service:
+      loadBalancerClass: tailscale
+    nodeSelector:
+      node.kubernetes.io/location: cloud
