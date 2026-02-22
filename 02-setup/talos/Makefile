@@ -25,6 +25,7 @@ gen-config-master1: ## Generate cloud master-1 controlplane config
 		--kubernetes-version $(KUBERNETES_VERSION) \
 		--talos-version $(TALOS_VERSION) \
 		--config-patch @$(PATCHES_DIR)/base.yaml \
+		--config-patch @$(PATCHES_DIR)/controlplane.yaml \
 		--config-patch @$(PATCHES_DIR)/cloud-nodes.yaml \
 		--config-patch @$(PATCHES_DIR)/tailscale.yaml \
 		--output $(CONFIGS_DIR)/cloud-master-1.yaml \

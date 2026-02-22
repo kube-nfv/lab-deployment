@@ -1,0 +1,53 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - namespace.yaml
+  - https://github.com/kubernetes-sigs/gcp-compute-persistent-disk-csi-driver/deploy/kubernetes/overlays/stable-master?ref=v1.23.3
+  - storageclass.yaml
+
+patches:
+  # Strategic merge: add nodeSelector to restrict DaemonSet to cloud nodes only
+  - path: node-daemonset-patch.yaml
+    target:
+      kind: DaemonSet
+      name: csi-gce-pd-node
+  # Strategic merge: restrict controller to cloud nodes (needs GCE metadata service for auth)
+  - path: controller-deployment-patch.yaml
+    target:
+      kind: Deployment
+      name: csi-gce-pd-controller
+  # JSON 6902: remove cloud-sa secret dependency from the controller.
+  # The GCE instances have the pd_csi SA attached, so the controller can use the
+  # instance metadata service (ADC fallback) instead of a JSON key file.
+  # Removes: GOOGLE_APPLICATION_CREDENTIALS env, cloud-sa-volume mount, cloud-sa-volume volume.
+  - target:
+      kind: Deployment
+      name: csi-gce-pd-controller
+    patch: |-
+      - op: remove
+        path: /spec/template/spec/containers/4/env/0
+      - op: remove
+        path: /spec/template/spec/containers/4/volumeMounts/1
+      - op: remove
+        path: /spec/template/spec/volumes/1
+  # JSON 6902: fix volumes for Talos Linux compatibility.
+  # - Restore index 0 (registration-dir) which was accidentally displaced by the previous patch.
+  # - Replace udev-rules-etc at index 4 with emptyDir: /etc/udev does not exist on Talos
+  #   (immutable OS). The driver never reads/writes /etc/udev at runtime.
+  - target:
+      kind: DaemonSet
+      name: csi-gce-pd-node
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/volumes/0
+        value:
+          name: registration-dir
+          hostPath:
+            path: /var/lib/kubelet/plugins_registry
+            type: Directory
+      - op: replace
+        path: /spec/template/spec/volumes/4
+        value:
+          name: udev-rules-etc
+          emptyDir: {}

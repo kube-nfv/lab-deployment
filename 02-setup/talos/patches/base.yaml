@@ -1,5 +1,7 @@
 machine:
   kubelet:
+    extraArgs:
+      cloud-provider: external
     nodeIP:
       validSubnets:
         - 100.64.0.0/10

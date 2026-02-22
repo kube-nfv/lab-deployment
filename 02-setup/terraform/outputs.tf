@@ -9,6 +9,11 @@ output "worker_external_ip" {
   value       = module.talos_cluster.worker_external_ip
 }
 
+output "pd_csi_sa_email" {
+  description = "Service account email for PD CSI driver"
+  value       = module.talos_cluster.pd_csi_sa_email
+}
+
 # Infrastructure outputs
 output "boot_assets_bucket" {
   description = "GCS bucket name for boot assets"

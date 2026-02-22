@@ -17,3 +17,8 @@ output "subnet" {
   description = "Subnet self-link"
   value       = google_compute_subnetwork.subnet.self_link
 }
+
+output "pd_csi_sa_email" {
+  description = "Service account email for PD CSI driver"
+  value       = google_service_account.pd_csi.email
+}

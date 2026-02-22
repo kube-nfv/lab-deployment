@@ -202,7 +202,7 @@ The `talos/patches/` directory contains configuration patches applied to all gen
 
 | Patch file | Purpose |
 |------------|---------|
-| `base.yaml` | Forces kubelet to register with Tailscale IP (`100.64.0.0/10`) on all nodes |
+| `base.yaml` | Forces kubelet and etcd to register with Tailscale IP (`100.64.0.0/10`) on all nodes |
 | `cloud-nodes.yaml` | Sets GCP installer image (with gcp-guest-agent extension) |
 | `edge-nodes.yaml` | Sets metal installer image |
 | `tailscale.yaml` | Injects Tailscale auth key via `ExtensionServiceConfig` (**encrypted**) |
@@ -384,6 +384,107 @@ kubectl --kubeconfig=02-setup/_out/talos/configs/kubeconfig get nodes \
 ```
 
 All nodes should show `100.x.x.x` Tailscale IPs.
+
+---
+
+### Phase 8: Cloud Provider Integration & Storage
+
+This phase deploys the Talos Cloud Controller Manager (CCM) to initialize all cluster nodes and optionally enables GCP Persistent Disk CSI for cloud storage.
+
+#### Why Talos CCM only (no GCP CCM)
+
+Talos CCM queries the Talos API on each node and works with any platform (gcp, metal, nocloud). It:
+- Removes the `node.cloudprovider.kubernetes.io/uninitialized` taint from ALL nodes (GCP + edge)
+- Sets `spec.providerID` and node addresses on all nodes
+- Sets topology labels derived from the Talos platform metadata
+
+GCP CCM is not needed: it adds LoadBalancer service provisioning and GCP route management, neither of which is required when using the Tailscale overlay.
+
+#### 8.1 Apply Talos configs with external cloud provider enabled
+
+The `controlplane.yaml` patch now includes:
+- `cluster.externalCloudProvider.enabled: true` — adds `--cloud-provider=external` to kubelet on all nodes and applies the `uninitialized` taint at boot
+- `machine.features.kubernetesTalosAPIAccess` — allows Talos CCM pods in `kube-system` to query each node's Talos API over port 50000
+
+After regenerating configs:
+
+```bash
+cd 02-setup/talos
+make gen-config
+
+# Apply to all nodes (they will reboot with --cloud-provider=external)
+talosctl apply-config --nodes 100.118.101.20 --file _out/talos/configs/cloud-master-1.yaml
+talosctl apply-config --nodes <cloud-worker-tailscale-ip> --file _out/talos/configs/cloud-worker-1.yaml
+talosctl apply-config --nodes 100.71.48.120 --file _out/talos/configs/edge-worker-1.yaml
+```
+
+> **Important**: Deploy Talos CCM immediately after nodes reboot, or workloads will remain stuck behind the `uninitialized` taint.
+
+#### 8.2 Deploy Talos CCM
+
+```bash
+helm upgrade -i -n kube-system talos-cloud-controller-manager \
+  oci://ghcr.io/siderolabs/charts/talos-cloud-controller-manager
+```
+
+No custom values are needed — the chart defaults already pin the CCM to the control plane node and include the correct tolerations.
+
+Talos CCM runs on the control plane node and contacts each node's Talos API via the Tailscale IPs already used for cluster communication.
+
+> **If deploying CCM onto an already-running cluster** (nodes registered without `--cloud-provider=external`), `providerID` will not be set automatically. Trigger initialization by adding the taint — CCM removes it within seconds:
+> ```bash
+> for node in setup02-cluster-master-1 setup02-cluster-worker-1 setup02-edge-worker-1; do
+>   kubectl taint node $node node.cloudprovider.kubernetes.io/uninitialized=true:NoSchedule
+> done
+> ```
+
+#### 8.3 Deploy GCP PD CSI Driver
+
+See `02-setup/k8s/pd-csi/README.md` for the full deployment steps.
+
+In summary:
+
+```bash
+kubectl apply -k 02-setup/k8s/pd-csi/
+```
+
+This deploys the upstream stable overlay, restricts the node DaemonSet to cloud nodes via a
+kustomize strategic merge patch, and creates the StorageClass — all in one step.
+
+To change the upstream version, edit the `?ref=` tag in `02-setup/k8s/pd-csi/kustomization.yaml`.
+
+#### 8.4 Verification
+
+```bash
+# Check node labels
+kubectl get nodes -o custom-columns='NAME:.metadata.name,REGION:.metadata.labels.topology\.kubernetes\.io/region,ZONE:.metadata.labels.topology\.kubernetes\.io/zone,LOCATION:.metadata.labels.node\.kubernetes\.io/location'
+
+# Check no uninitialized taints remain
+kubectl describe nodes | grep -A3 Taints
+
+# Check providerID is set on all nodes
+kubectl get nodes -o custom-columns='NAME:.metadata.name,PROVIDER:.spec.providerID'
+
+# Test cloud-only PVC provisioning
+kubectl apply -f - <<EOF
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: test-pvc
+spec:
+  accessModes: ["ReadWriteOnce"]
+  resources:
+    requests:
+      storage: 1Gi
+  storageClassName: pd-standard
+EOF
+
+# Test nodeSelector scheduling
+kubectl run test-cloud --image=busybox --restart=Never \
+  --overrides='{"spec":{"nodeSelector":{"node.kubernetes.io/location":"cloud"}}}' -- sleep 3600
+kubectl run test-edge --image=busybox --restart=Never \
+  --overrides='{"spec":{"nodeSelector":{"node.kubernetes.io/location":"edge"}}}' -- sleep 3600
+```
 
 ---
 

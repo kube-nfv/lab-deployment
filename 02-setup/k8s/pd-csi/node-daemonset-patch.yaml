@@ -1,0 +1,10 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: csi-gce-pd-node
+  namespace: kube-system
+spec:
+  template:
+    spec:
+      nodeSelector:
+        node.kubernetes.io/location: cloud

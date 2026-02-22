@@ -1,3 +1,7 @@
 machine:
   install:
     image: factory.talos.dev/metal-installer/7d4c31cbd96db9f90c874990697c523482b2bae27fb4631d5583dcd9c281b1ff:v1.12.4
+  nodeLabels:
+    topology.kubernetes.io/region: edge
+    topology.kubernetes.io/zone: edge-site-1
+    node.kubernetes.io/location: edge

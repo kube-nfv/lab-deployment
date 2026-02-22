@@ -1,0 +1,10 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: csi-gce-pd-controller
+  namespace: gce-pd-csi-driver
+spec:
+  template:
+    spec:
+      nodeSelector:
+        node.kubernetes.io/location: cloud

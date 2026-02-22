@@ -65,6 +65,45 @@ resource "google_compute_address" "worker" {
   region = var.region
 }
 
+# Service account for PD CSI driver on GCP nodes
+resource "google_service_account" "pd_csi" {
+  account_id   = "${var.cluster_name}-pd-csi"
+  display_name = "PD CSI Driver for ${var.cluster_name}"
+  project      = var.project_id
+}
+
+resource "google_project_iam_member" "pd_csi_storage_admin" {
+  project = var.project_id
+  role    = "roles/compute.storageAdmin"
+  member  = "serviceAccount:${google_service_account.pd_csi.email}"
+}
+
+resource "google_project_iam_member" "pd_csi_sa_user" {
+  project = var.project_id
+  role    = "roles/iam.serviceAccountUser"
+  member  = "serviceAccount:${google_service_account.pd_csi.email}"
+}
+
+# Custom role with the minimal instance permissions needed for disk attach/detach.
+# roles/compute.storageAdmin covers disk CRUD but not compute.instances.{get,attachDisk,detachDisk}.
+resource "google_project_iam_custom_role" "pd_csi_node_ops" {
+  role_id     = "pdCsiNodeOps"
+  title       = "PD CSI Node Operations"
+  description = "Minimal instance permissions for GCP PD CSI driver attach/detach operations"
+  project     = var.project_id
+  permissions = [
+    "compute.instances.get",
+    "compute.instances.attachDisk",
+    "compute.instances.detachDisk",
+  ]
+}
+
+resource "google_project_iam_member" "pd_csi_node_ops" {
+  project = var.project_id
+  role    = google_project_iam_custom_role.pd_csi_node_ops.id
+  member  = "serviceAccount:${google_service_account.pd_csi.email}"
+}
+
 # Master node
 resource "google_compute_instance" "master" {
   name         = "${var.cluster_name}-master-1"
@@ -86,6 +125,11 @@ resource "google_compute_instance" "master" {
     access_config {
       nat_ip = google_compute_address.master.address
     }
+  }
+
+  service_account {
+    email  = google_service_account.pd_csi.email
+    scopes = ["cloud-platform"]
   }
 }
 
@@ -110,5 +154,10 @@ resource "google_compute_instance" "worker" {
     access_config {
       nat_ip = google_compute_address.worker.address
     }
+  }
+
+  service_account {
+    email  = google_service_account.pd_csi.email
+    scopes = ["cloud-platform"]
   }
 }

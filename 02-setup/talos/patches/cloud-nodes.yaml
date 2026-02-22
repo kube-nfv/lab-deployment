@@ -1,3 +1,7 @@
 machine:
   install:
     image: factory.talos.dev/gcp-installer/4a0d65c669d46663f377e7161e50cfd570c401f26fd9e7bda34a0216b6f1922b:v1.12.4
+  nodeLabels:
+    topology.kubernetes.io/region: europe-central2
+    topology.kubernetes.io/zone: europe-central2-a
+    node.kubernetes.io/location: cloud
