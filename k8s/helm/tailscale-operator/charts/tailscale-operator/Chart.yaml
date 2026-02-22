@@ -1,5 +1,5 @@
 apiVersion: v2
-appVersion: v1.88.4
+appVersion: v1.94.2
 description: A Helm chart for Tailscale Kubernetes operator
 home: https://github.com/tailscale/tailscale
 keywords:
@@ -15,4 +15,4 @@ name: tailscale-operator
 sources:
 - https://github.com/tailscale/tailscale
 type: application
-version: 1.88.4
+version: 1.94.2

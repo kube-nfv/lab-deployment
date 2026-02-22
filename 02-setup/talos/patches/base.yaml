@@ -5,3 +5,7 @@ machine:
     nodeIP:
       validSubnets:
         - 100.64.0.0/10
+cluster:
+  network:
+    cni:
+      name: none

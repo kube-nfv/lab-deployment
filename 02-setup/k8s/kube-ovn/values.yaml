@@ -1,0 +1,10 @@
+kube-ovn:
+  # Tailscale uses 100.64.0.0/10 (CGNAT). The kube-OVN default join subnet
+  # (100.64.0.0/16) is a subset of that range, causing two problems:
+  # 1. etcd advertisedSubnets [100.64.0.0/10] picks up the ovn0 join IP and
+  #    advertises it as a peer, breaking the etcd membership check.
+  # 2. Tailscale captures the route to 100.64.0.1 (OVN join gateway), so the
+  #    kube-ovn-cni gateway ping fails and the CNI crashes.
+  # Use a join CIDR outside the Tailscale range.
+  ipv4:
+    JOIN_CIDR: "10.200.0.0/16"
