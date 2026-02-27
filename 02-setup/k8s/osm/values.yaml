@@ -44,8 +44,34 @@ osm:
       persistence:
         storageClass: "pd-standard"
         size: 8Gi
+    zookeeper:
+      nodeSelector:
+        node.kubernetes.io/location: cloud
+      tolerations:
+        - key: node.kubernetes.io/location
+          operator: Equal
+          value: cloud
+          effect: NoSchedule
+
+  mysql:
+    primary:
+      nodeSelector:
+        node.kubernetes.io/location: cloud
+      tolerations:
+        - key: node.kubernetes.io/location
+          operator: Equal
+          value: cloud
+          effect: NoSchedule
 
   prometheus:
+    kube-state-metrics:
+      nodeSelector:
+        node.kubernetes.io/location: cloud
+      tolerations:
+        - key: node.kubernetes.io/location
+          operator: Equal
+          value: cloud
+          effect: NoSchedule
     server:
       nodeSelector:
         node.kubernetes.io/location: cloud
