@@ -1,0 +1,7 @@
+tolerations:
+  - key: node-role.kubernetes.io/control-plane
+    effect: NoSchedule
+  - key: node.kubernetes.io/location
+    operator: Equal
+    value: cloud
+    effect: NoSchedule

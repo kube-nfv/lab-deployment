@@ -8,3 +8,8 @@ spec:
     spec:
       nodeSelector:
         node.kubernetes.io/location: cloud
+      tolerations:
+        - key: node.kubernetes.io/location
+          operator: Equal
+          value: cloud
+          effect: NoSchedule

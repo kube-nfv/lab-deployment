@@ -6,13 +6,28 @@ osm:
       enabled: false
     nodeSelector:
       node.kubernetes.io/location: cloud
+    tolerations:
+      - key: node.kubernetes.io/location
+        operator: Equal
+        value: cloud
+        effect: NoSchedule
 
   mongodb:
     nodeSelector:
       node.kubernetes.io/location: cloud
+    tolerations:
+      - key: node.kubernetes.io/location
+        operator: Equal
+        value: cloud
+        effect: NoSchedule
     arbiter:
       nodeSelector:
         node.kubernetes.io/location: cloud
+      tolerations:
+        - key: node.kubernetes.io/location
+          operator: Equal
+          value: cloud
+          effect: NoSchedule
     persistence:
       storageClass: "pd-standard"
       size: 8Gi
@@ -21,6 +36,11 @@ osm:
     controller:
       nodeSelector:
         node.kubernetes.io/location: cloud
+      tolerations:
+        - key: node.kubernetes.io/location
+          operator: Equal
+          value: cloud
+          effect: NoSchedule
       persistence:
         storageClass: "pd-standard"
         size: 8Gi
@@ -29,44 +49,100 @@ osm:
     server:
       nodeSelector:
         node.kubernetes.io/location: cloud
+      tolerations:
+        - key: node.kubernetes.io/location
+          operator: Equal
+          value: cloud
+          effect: NoSchedule
       persistentVolume:
         storageClass: "pd-standard"
         size: 8Gi
+      ingress:
+        hosts:
+          - "prometheus.ingress-nginx-ingress-nginx-controller.tailac05db.ts.net"
     alertmanager:
       nodeSelector:
         node.kubernetes.io/location: cloud
+      tolerations:
+        - key: node.kubernetes.io/location
+          operator: Equal
+          value: cloud
+          effect: NoSchedule
     prometheus-pushgateway:
       nodeSelector:
         node.kubernetes.io/location: cloud
+      tolerations:
+        - key: node.kubernetes.io/location
+          operator: Equal
+          value: cloud
+          effect: NoSchedule
 
   grafana:
     nodeSelector:
       node.kubernetes.io/location: cloud
+    tolerations:
+      - key: node.kubernetes.io/location
+        operator: Equal
+        value: cloud
+        effect: NoSchedule
     persistence:
       enabled: true
       storageClassName: "pd-standard"
       size: 2Gi
+    ingress:
+      hosts:
+        - "grafana.ingress-nginx-ingress-nginx-controller.tailac05db.ts.net"
 
   airflow:
     nodeSelector:
       node.kubernetes.io/location: cloud
+    tolerations:
+      - key: node.kubernetes.io/location
+        operator: Equal
+        value: cloud
+        effect: NoSchedule
     scheduler:
       nodeSelector:
         node.kubernetes.io/location: cloud
+      tolerations:
+        - key: node.kubernetes.io/location
+          operator: Equal
+          value: cloud
+          effect: NoSchedule
     webserver:
       nodeSelector:
         node.kubernetes.io/location: cloud
+      tolerations:
+        - key: node.kubernetes.io/location
+          operator: Equal
+          value: cloud
+          effect: NoSchedule
     triggerer:
       nodeSelector:
         node.kubernetes.io/location: cloud
+      tolerations:
+        - key: node.kubernetes.io/location
+          operator: Equal
+          value: cloud
+          effect: NoSchedule
     workers:
       nodeSelector:
         node.kubernetes.io/location: cloud
+      tolerations:
+        - key: node.kubernetes.io/location
+          operator: Equal
+          value: cloud
+          effect: NoSchedule
       persistence:
         storageClassName: "pd-standard"
     postgresql:
       primary:
         nodeSelector:
           node.kubernetes.io/location: cloud
+        tolerations:
+          - key: node.kubernetes.io/location
+            operator: Equal
+            value: cloud
+            effect: NoSchedule
         persistence:
           storageClass: "pd-standard"

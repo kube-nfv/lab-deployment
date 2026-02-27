@@ -1,0 +1,10 @@
+osm:
+  mysql:
+    image:
+      repository: bitnamilegacy/mysql
+  kafka:
+    zookeeper:
+      image:
+        repository: bitnamilegacy/zookeeper
+
+

@@ -5,5 +5,10 @@ tailscale-operator:
     hostname: "setup02-tailscale-operator"
     nodeSelector:
       node.kubernetes.io/location: cloud
+    tolerations:
+      - key: node.kubernetes.io/location
+        operator: Equal
+        value: cloud
+        effect: NoSchedule
   proxyConfig:
     defaultTags: "tag:setup02-k8s"

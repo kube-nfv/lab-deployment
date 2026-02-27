@@ -5,3 +5,5 @@ machine:
     topology.kubernetes.io/region: europe-central2
     topology.kubernetes.io/zone: europe-central2-a
     node.kubernetes.io/location: cloud
+  nodeTaints:
+    node.kubernetes.io/location: "cloud:NoSchedule"

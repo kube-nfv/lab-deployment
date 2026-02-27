@@ -2,3 +2,20 @@ cert-manager:
   installCRDs: true
   nodeSelector:
     node.kubernetes.io/location: cloud
+  tolerations:
+    - key: node.kubernetes.io/location
+      operator: Equal
+      value: cloud
+      effect: NoSchedule
+  webhook:
+    tolerations:
+      - key: node.kubernetes.io/location
+        operator: Equal
+        value: cloud
+        effect: NoSchedule
+  cainjector:
+    tolerations:
+      - key: node.kubernetes.io/location
+        operator: Equal
+        value: cloud
+        effect: NoSchedule
