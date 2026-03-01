@@ -1,0 +1,7 @@
+apiVersion: v2
+name: gitea
+version: 0.0.1
+dependencies:
+  - name: gitea
+    version: "*"
+    repository: "file://charts/gitea"

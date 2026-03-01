@@ -1,9 +1,20 @@
 osm:
   global:
-    hostname: "ingress-nginx-ingress-nginx-controller.tailac05db.ts.net"
-    ingressClassName: nginx
+    hostname: "tailac05db.ts.net"
+    ingressClassName: tailscale
+    tailscaleProxyClass: default-proxy-class
     gitops:
-      enabled: false
+      enabled: true
+      gitUser: osm-developer
+      gitBaseUrl: http://gitea-http.gitea.svc.cluster.local:3000
+      fleetRepoUrl: http://gitea-http.gitea.svc.cluster.local:3000/osm-developer/fleet-osm
+      swcatalogsRepoUrl: http://gitea-http.gitea.svc.cluster.local:3000/osm-developer/sw-catalogs-osm
+      mgmtcluster:
+        secretName: mgmtcluster-secret
+        secretKey: kubeconfig
+      auxcluster:
+        secretName: auxcluster-secret
+        secretKey: kubeconfig
     nodeSelector:
       node.kubernetes.io/location: cloud
     tolerations:
@@ -84,8 +95,15 @@ osm:
         storageClass: "pd-standard"
         size: 8Gi
       ingress:
+        ingressClassName: tailscale
+        annotations:
+          tailscale.com/proxy-class: default-proxy-class
         hosts:
-          - "prometheus.ingress-nginx-ingress-nginx-controller.tailac05db.ts.net"
+          - "setup02-prometheus.tailac05db.ts.net"
+        tls:
+          - secretName: prometheus-cert
+            hosts:
+              - "setup02-prometheus.tailac05db.ts.net"
     alertmanager:
       nodeSelector:
         node.kubernetes.io/location: cloud
@@ -116,10 +134,44 @@ osm:
       storageClassName: "pd-standard"
       size: 2Gi
     ingress:
+      ingressClassName: tailscale
+      annotations:
+        tailscale.com/proxy-class: default-proxy-class
       hosts:
-        - "grafana.ingress-nginx-ingress-nginx-controller.tailac05db.ts.net"
+        - "setup02-grafana.tailac05db.ts.net"
+      tls:
+        - secretName: grafana-cert
+          hosts:
+            - "setup02-grafana.tailac05db.ts.net"
+
+  nbi:
+    ingress:
+      host: "setup02-nbi.tailac05db.ts.net"
+
+  ngui:
+    ingress:
+      host: "setup02-gui.tailac05db.ts.net"
+
+  alertmanager:
+    ingress:
+      host: "setup02-alertmanager.tailac05db.ts.net"
+
+  webhookTranslator:
+    ingress:
+      host: "setup02-webhook.tailac05db.ts.net"
 
   airflow:
+    ingress:
+      web:
+        ingressClassName: tailscale
+        annotations:
+          tailscale.com/proxy-class: default-proxy-class
+        host: "setup02-airflow.tailac05db.ts.net"
+        tls:
+          enabled: true
+          secretName: airflow-cert
+        path: /
+        pathType: Prefix
     nodeSelector:
       node.kubernetes.io/location: cloud
     tolerations:

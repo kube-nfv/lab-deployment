@@ -1,0 +1,9 @@
+minio:
+  image:
+    registry: docker.io
+    repository: bitnamilegacy/minio
+
+  console:
+    image:
+      registry: docker.io
+      repository: bitnamilegacy/minio-object-browser

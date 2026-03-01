@@ -1,3 +1,13 @@
+# top-level values consumed by the umbrella chart templates
+proxyClass:
+  name: default-proxy-class
+  tolerations:
+    - key: "node.kubernetes.io/location"
+      operator: "Equal"
+      value: cloud
+      effect: "NoSchedule"
+
+# sub-chart values
 tailscale-operator:
   operatorConfig:
     defaultTags:
@@ -12,3 +22,4 @@ tailscale-operator:
         effect: NoSchedule
   proxyConfig:
     defaultTags: "tag:setup02-k8s"
+    defaultProxyClass: "default-proxy-class"

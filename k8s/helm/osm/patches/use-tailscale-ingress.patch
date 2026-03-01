@@ -1,0 +1,64 @@
+diff --git a/charts/osm/templates/nbi/nbi-ingress.yaml b/charts/osm/templates/nbi/nbi-ingress.yaml
+--- a/charts/osm/templates/nbi/nbi-ingress.yaml
++++ b/charts/osm/templates/nbi/nbi-ingress.yaml
+@@ -22,7 +22,11 @@ metadata:
+   labels:
+     {{- include "osm.labels" . | nindent 4 }}
+   annotations:
+-    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
++    {{- if eq (.Values.global.ingressClassName | default "nginx") "tailscale" }}
++    tailscale.com/proxy-class: {{ .Values.global.tailscaleProxyClass | default "default-proxy-class" }}
++    {{- else }}
++    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
++    {{- end }}
+ spec:
+   ingressClassName: {{ .Values.global.ingressClassName | default "nginx" }}
+   rules:
+diff --git a/charts/osm/templates/ng_ui/ngui-ingress.yaml b/charts/osm/templates/ng_ui/ngui-ingress.yaml
+--- a/charts/osm/templates/ng_ui/ngui-ingress.yaml
++++ b/charts/osm/templates/ng_ui/ngui-ingress.yaml
+@@ -22,7 +22,11 @@ metadata:
+   labels:
+     {{- include "osm.labels" . | nindent 4 }}
+   annotations:
+-    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
++    {{- if eq (.Values.global.ingressClassName | default "nginx") "tailscale" }}
++    tailscale.com/proxy-class: {{ .Values.global.tailscaleProxyClass | default "default-proxy-class" }}
++    {{- else }}
++    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
++    {{- end }}
+ spec:
+   ingressClassName: {{ .Values.global.ingressClassName | default "nginx" }}
+   rules:
+diff --git a/charts/osm/templates/alertmanager/alertmanager-ingress.yaml b/charts/osm/templates/alertmanager/alertmanager-ingress.yaml
+--- a/charts/osm/templates/alertmanager/alertmanager-ingress.yaml
++++ b/charts/osm/templates/alertmanager/alertmanager-ingress.yaml
+@@ -22,7 +22,11 @@ metadata:
+   labels:
+     {{- include "osm.labels" . | nindent 4 }}
+   annotations:
+-    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
++    {{- if eq (.Values.global.ingressClassName | default "nginx") "tailscale" }}
++    tailscale.com/proxy-class: {{ .Values.global.tailscaleProxyClass | default "default-proxy-class" }}
++    {{- else }}
++    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
++    {{- end }}
+ spec:
+   ingressClassName: {{ .Values.global.ingressClassName | default "nginx" }}
+   rules:
+diff --git a/charts/osm/templates/webhook_translator/webhook-translator-ingress.yaml b/charts/osm/templates/webhook_translator/webhook-translator-ingress.yaml
+--- a/charts/osm/templates/webhook_translator/webhook-translator-ingress.yaml
++++ b/charts/osm/templates/webhook_translator/webhook-translator-ingress.yaml
+@@ -22,7 +22,11 @@ metadata:
+   labels:
+     {{- include "osm.labels" . | nindent 4 }}
+   annotations:
+-    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
++    {{- if eq (.Values.global.ingressClassName | default "nginx") "tailscale" }}
++    tailscale.com/proxy-class: {{ .Values.global.tailscaleProxyClass | default "default-proxy-class" }}
++    {{- else }}
++    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
++    {{- end }}
+ spec:
+   ingressClassName: {{ .Values.global.ingressClassName | default "nginx" }}
+   rules:

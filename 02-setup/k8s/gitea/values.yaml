@@ -1,0 +1,73 @@
+gitea:
+  nodeSelector:
+    node.kubernetes.io/location: cloud
+  tolerations:
+    - key: node.kubernetes.io/location
+      operator: Equal
+      value: cloud
+      effect: NoSchedule
+
+  service:
+    http:
+      clusterIP: ""
+
+  ingress:
+    enabled: true
+    className: tailscale
+    annotations:
+      tailscale.com/proxy-class: default-proxy-class
+    hosts:
+      - host: setup02-gitea.tailac05db.ts.net
+        paths:
+          - path: /
+            pathType: Prefix
+    tls:
+      - hosts:
+          - setup02-gitea.tailac05db.ts.net
+
+  gitea:
+    admin:
+      username: osm-admin
+      email: osm-admin@gitea.local
+    config:
+      server:
+        DOMAIN: setup02-gitea.tailac05db.ts.net
+        ROOT_URL: https://setup02-gitea.tailac05db.ts.net
+      database:
+        DB_TYPE: postgres
+
+  persistence:
+    storageClass: pd-standard
+    size: 10Gi
+
+  postgresql-ha:
+    enabled: false
+
+  postgresql:
+    enabled: true
+    primary:
+      nodeSelector:
+        node.kubernetes.io/location: cloud
+      tolerations:
+        - key: node.kubernetes.io/location
+          operator: Equal
+          value: cloud
+          effect: NoSchedule
+      persistence:
+        storageClass: pd-standard
+        size: 10Gi
+
+  valkey:
+    enabled: true
+    primary:
+      nodeSelector:
+        node.kubernetes.io/location: cloud
+      tolerations:
+        - key: node.kubernetes.io/location
+          operator: Equal
+          value: cloud
+          effect: NoSchedule
+
+  valkey-cluster:
+    enabled: false
+

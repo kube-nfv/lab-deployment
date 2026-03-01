@@ -22,7 +22,11 @@ metadata:
   labels:
     {{- include "osm.labels" . | nindent 4 }}
   annotations:
+    {{- if eq (.Values.global.ingressClassName | default "nginx") "tailscale" }}
+    tailscale.com/proxy-class: {{ .Values.global.tailscaleProxyClass | default "default-proxy-class" }}
+    {{- else }}
     nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    {{- end }}
 spec:
   ingressClassName: {{ .Values.global.ingressClassName | default "nginx" }}
   rules:

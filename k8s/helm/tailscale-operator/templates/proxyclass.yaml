@@ -1,0 +1,13 @@
+{{- if .Values.proxyClass }}
+apiVersion: tailscale.com/v1alpha1
+kind: ProxyClass
+metadata:
+  name: {{ .Values.proxyClass.name | default "default-proxy-class" }}
+spec:
+  statefulSet:
+    pod:
+      {{- if .Values.proxyClass.tolerations }}
+      tolerations:
+        {{- toYaml .Values.proxyClass.tolerations | nindent 8 }}
+      {{- end }}
+{{- end }}
