@@ -12,5 +12,5 @@ allowedTopologies:
   - matchLabelExpressions:
       - key: topology.gke.io/zone
         values:
-          - europe-central2-a
+          - europe-central2-b
 reclaimPolicy: Delete

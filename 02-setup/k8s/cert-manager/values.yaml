@@ -19,3 +19,9 @@ cert-manager:
         operator: Equal
         value: cloud
         effect: NoSchedule
+  startupapicheck:
+    tolerations:
+      - key: node.kubernetes.io/location
+        operator: Equal
+        value: cloud
+        effect: NoSchedule

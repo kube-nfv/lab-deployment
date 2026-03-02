@@ -1,7 +1,7 @@
 TALOS_VERSION      := v1.12.4
 KUBERNETES_VERSION := 1.34.1
 CLUSTER_NAME       := setup02-cluster
-CLUSTER_ENDPOINT   ?= https://100.118.101.20:6443
+CLUSTER_ENDPOINT   ?= https://100.115.166.50:6443
 
 SECRETS_FILE := $(CURDIR)/secrets.yaml
 PATCHES_DIR  := $(CURDIR)/patches

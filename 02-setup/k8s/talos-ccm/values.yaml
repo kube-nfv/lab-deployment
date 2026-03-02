@@ -5,3 +5,7 @@ tolerations:
     operator: Equal
     value: cloud
     effect: NoSchedule
+  - key: node.cloudprovider.kubernetes.io/uninitialized
+    operator: Equal
+    value: "true"
+    effect: NoSchedule

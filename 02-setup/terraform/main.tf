@@ -10,6 +10,7 @@ module "talos_cluster" {
   project_id          = var.project_id
   region              = var.region
   zone                = var.zone
+  master_zone         = var.master_zone
   cluster_name        = var.cluster_name
   talos_image         = var.talos_image
   master_machine_type = var.master_machine_type

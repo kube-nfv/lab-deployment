@@ -9,7 +9,12 @@ variable "region" {
 }
 
 variable "zone" {
-  description = "GCP zone"
+  description = "GCP zone (used for worker node)"
+  type        = string
+}
+
+variable "master_zone" {
+  description = "GCP zone for master node (can differ from worker zone)"
   type        = string
 }
 

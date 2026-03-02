@@ -1,5 +1,6 @@
 <domain type='kvm'>
   <name>talos-setup02-edge-1</name>
+  <uuid>9ddf0214-b102-49a3-bec3-d1151498a44e</uuid>
   <memory unit='KiB'>8388608</memory>
   <currentMemory unit='KiB'>8388608</currentMemory>
   <vcpu placement='static'>4</vcpu>
@@ -32,6 +33,11 @@
       <driver name='qemu' type='raw' cache='none' io='native'/>
       <source dev='/dev/vg-talos-setup02/talos-setup02-edge1'/>
       <target dev='vda' bus='virtio'/>
+    </disk>
+    <disk type='block' device='disk'>
+      <driver name='qemu' type='raw' cache='none' io='native'/>
+      <source dev='/dev/vg-drbd-setup02/drbd-setup02-1'/>
+      <target dev='vdb' bus='virtio'/>
     </disk>
     <disk type='file' device='cdrom'>
       <driver name='qemu' type='raw'/>

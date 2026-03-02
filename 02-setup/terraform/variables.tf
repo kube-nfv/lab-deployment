@@ -10,9 +10,15 @@ variable "region" {
 }
 
 variable "zone" {
-  description = "GCP zone"
+  description = "GCP zone (used for worker node)"
   type        = string
   default     = "europe-central2-a"
+}
+
+variable "master_zone" {
+  description = "GCP zone for master node (can differ from worker zone)"
+  type        = string
+  default     = "europe-central2-b"
 }
 
 variable "cluster_name" {
@@ -29,7 +35,7 @@ variable "talos_image" {
 variable "master_machine_type" {
   description = "GCE machine type for master node"
   type        = string
-  default     = "e2-standard-4"
+  default     = "e2-standard-2"
 }
 
 variable "worker_machine_type" {

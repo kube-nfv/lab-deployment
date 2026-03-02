@@ -108,7 +108,7 @@ resource "google_project_iam_member" "pd_csi_node_ops" {
 resource "google_compute_instance" "master" {
   name         = "${var.cluster_name}-master-1"
   machine_type = var.master_machine_type
-  zone         = var.zone
+  zone         = var.master_zone
   tags         = ["talos-node"]
 
   boot_disk {

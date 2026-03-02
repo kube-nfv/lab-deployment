@@ -5,6 +5,9 @@ machine:
     nodeIP:
       validSubnets:
         - 100.64.0.0/10
+  kernel:
+    modules:
+      - name: openvswitch
 cluster:
   network:
     cni:

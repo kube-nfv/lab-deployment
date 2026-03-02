@@ -1,6 +1,13 @@
 machine:
+  kernel:
+    modules:
+      - name: drbd
+        parameters:
+          - usermode_helper=disabled
+      - name: drbd_transport_tcp
+      - name: zfs
   install:
-    image: factory.talos.dev/metal-installer/7d4c31cbd96db9f90c874990697c523482b2bae27fb4631d5583dcd9c281b1ff:v1.12.4
+    image: factory.talos.dev/metal-installer/5191d303e9f5343e48f87f12c2d51c9ea3d12c76a17acd9ee3e753e8a7676ddb:v1.12.4
   nodeLabels:
     topology.kubernetes.io/region: edge
     topology.kubernetes.io/zone: edge-site-1
