@@ -1,0 +1,72 @@
+nodeSelector:
+  node.kubernetes.io/location: edge
+tolerations:
+- key: node.kubernetes.io/location
+  operator: Equal
+  value: edge
+  effect: NoSchedule
+
+controller:
+  podTemplate:
+    spec:
+      nodeSelector:
+        node.kubernetes.io/location: cloud
+      tolerations:
+      - key: node.kubernetes.io/location
+        operator: Equal
+        value: cloud
+        effect: NoSchedule
+
+csiController:
+  podTemplate:
+    spec:
+      nodeSelector:
+        node.kubernetes.io/location: cloud
+      tolerations:
+      - key: node.kubernetes.io/location
+        operator: Equal
+        value: cloud
+        effect: NoSchedule
+
+affinityController:
+  podTemplate:
+    spec:
+      nodeSelector:
+        node.kubernetes.io/location: cloud
+      tolerations:
+      - key: node.kubernetes.io/location
+        operator: Equal
+        value: cloud
+        effect: NoSchedule
+
+nfsServer:
+  enabled: false
+
+extraManifests:
+- apiVersion: piraeus.io/v1
+  kind: LinstorSatelliteConfiguration
+  metadata:
+    name: zfs-storage
+  spec:
+    storagePools:
+    - name: data
+      zfsPool:
+        zPool: data
+      source:
+        hostDevices:
+        - /dev/vdb
+    nodeSelector:
+      node.kubernetes.io/location: edge
+- apiVersion: storage.k8s.io/v1
+  kind: StorageClass
+  metadata:
+    name: local
+    annotations:
+      storageclass.kubernetes.io/is-default-class: "true"
+  provisioner: linstor.csi.linbit.com
+  parameters:
+    linstor.csi.linbit.com/storagePool: "data"
+    linstor.csi.linbit.com/layerList: "storage"
+    linstor.csi.linbit.com/allowRemoteVolumeAccess: "false"
+  volumeBindingMode: WaitForFirstConsumer
+  allowVolumeExpansion: true

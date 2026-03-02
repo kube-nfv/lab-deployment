@@ -2,4 +2,28 @@ apiVersion: piraeus.io/v1
 kind: LinstorCluster
 metadata:
   name: linstorcluster
-spec: {}
+spec:
+  {{- with .Values.nodeSelector }}
+  nodeSelector:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- with .Values.tolerations }}
+  tolerations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- with .Values.controller }}
+  controller:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- with .Values.csiController }}
+  csiController:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- with .Values.affinityController }}
+  affinityController:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- with .Values.nfsServer }}
+  nfsServer:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}

@@ -1,0 +1,32 @@
+tolerations: []
+# - key: node-role.kubernetes.io/control-plane
+#   effect: NoSchedule
+
+nodeSelector: {}
+# kubernetes.io/os: linux
+
+extraManifests: []
+# Example StorageClass:
+# - apiVersion: storage.k8s.io/v1
+#   kind: StorageClass
+#   metadata:
+#     name: linstor-ssd
+#   provisioner: linstor.csi.linbit.com
+#   parameters:
+#     linstor.csi.linbit.com/storagePool: ssd-pool
+#   reclaimPolicy: Delete
+#   volumeBindingMode: WaitForFirstConsumer
+#   allowVolumeExpansion: true
+#
+# Example LinstorStoragePool:
+# - apiVersion: piraeus.io/v1
+#   kind: LinstorStoragePool
+#   metadata:
+#     name: ssd-pool
+#     annotations:
+#       linstor.node.example.com/storage-pool: ssd-pool
+#   spec:
+#     providerKind: LVM_THIN
+#     lvmThinPool:
+#       volumeGroup: vg-linstor
+#       thinPool: thin-linstor
