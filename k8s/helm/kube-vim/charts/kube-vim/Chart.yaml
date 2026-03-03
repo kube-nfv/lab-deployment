@@ -1,0 +1,4 @@
+apiVersion: v2
+description: A Helm chart for Kube-NFV kube-vim installation
+name: kube-vim
+version: 0.0.1

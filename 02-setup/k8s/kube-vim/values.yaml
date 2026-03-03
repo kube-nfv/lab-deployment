@@ -1,0 +1,32 @@
+kube-vim:
+  vim:
+    nodeSelector:
+      node.kubernetes.io/location: cloud
+    tolerations:
+    - key: node.kubernetes.io/location
+      operator: Equal
+      value: cloud
+      effect: NoSchedule
+
+  gateway:
+    nodeSelector:
+      node.kubernetes.io/location: cloud
+    tolerations:
+    - key: node.kubernetes.io/location
+      operator: Equal
+      value: cloud
+      effect: NoSchedule
+
+    ingress:
+      enabled: true
+      className: tailscale
+      annotations:
+        tailscale.com/proxy-class: default-proxy-class
+      hosts:
+      - host: setup02-kube-vim.tailac05db.ts.net
+        paths:
+        - path: /
+          pathType: Prefix
+      tls:
+      - hosts:
+        - setup02-kube-vim.tailac05db.ts.net

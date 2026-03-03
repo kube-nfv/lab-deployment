@@ -1,0 +1,4 @@
+apiVersion: v2
+name: kube-vim
+description: A Helm umbrella chart for kube-vim
+version: 0.0.1
