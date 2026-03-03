@@ -1,0 +1,8 @@
+resources:
+  - ../../../k8s/helm/kubevirt-operator
+
+patches:
+  - path: patch-virt-operator.yaml
+    target:
+      kind: Deployment
+      name: virt-operator

@@ -1,0 +1,31 @@
+apiVersion: kubevirt.io/v1
+kind: KubeVirt
+metadata:
+  name: kubevirt
+  namespace: kubevirt
+spec:
+  certificateRotateStrategy: {}
+  configuration:
+    developerConfiguration:
+      featureGates: []
+  customizeComponents: {}
+  imagePullPolicy: IfNotPresent
+  workloadUpdateStrategy: {}
+  infra:
+    nodePlacement:
+      nodeSelector:
+        node.kubernetes.io/location: cloud
+      tolerations:
+      - key: node.kubernetes.io/location
+        operator: Equal
+        value: cloud
+        effect: NoSchedule
+  workloads:
+    nodePlacement:
+      nodeSelector:
+        node.kubernetes.io/location: edge
+      tolerations:
+      - key: node.kubernetes.io/location
+        operator: Equal
+        value: edge
+        effect: NoSchedule

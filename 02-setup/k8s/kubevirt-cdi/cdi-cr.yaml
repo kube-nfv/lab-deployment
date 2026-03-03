@@ -1,0 +1,30 @@
+apiVersion: cdi.kubevirt.io/v1beta1
+kind: CDI
+metadata:
+  name: cdi
+spec:
+  config:
+    featureGates:
+    - HonorWaitForFirstConsumer
+    - WebhookPvcRendering
+  imagePullPolicy: IfNotPresent
+  infra:
+    nodeSelector:
+      kubernetes.io/os: linux
+      node.kubernetes.io/location: cloud
+    tolerations:
+    - key: CriticalAddonsOnly
+      operator: Exists
+    - key: node.kubernetes.io/location
+      operator: Equal
+      value: cloud
+      effect: NoSchedule
+  workload:
+    nodeSelector:
+      kubernetes.io/os: linux
+      node.kubernetes.io/location: edge
+    tolerations:
+    - key: node.kubernetes.io/location
+      operator: Equal
+      value: edge
+      effect: NoSchedule

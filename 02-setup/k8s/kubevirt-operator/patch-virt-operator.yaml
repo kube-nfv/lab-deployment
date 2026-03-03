@@ -1,0 +1,15 @@
+- op: replace
+  path: /spec/replicas
+  value: 1
+- op: add
+  path: /spec/template/spec/nodeSelector/node.kubernetes.io~1location
+  value: cloud
+- op: add
+  path: /spec/template/spec/tolerations/-
+  value:
+    key: node.kubernetes.io/location
+    operator: Equal
+    value: cloud
+    effect: NoSchedule
+- op: remove
+  path: /spec/template/spec/affinity/nodeAffinity/requiredDuringSchedulingIgnoredDuringExecution

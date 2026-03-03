@@ -1,0 +1,8 @@
+resources:
+  - ../../../k8s/helm/kubevirt-cdi-operator
+
+patches:
+  - path: patch-cdi-operator.yaml
+    target:
+      kind: Deployment
+      name: cdi-operator
