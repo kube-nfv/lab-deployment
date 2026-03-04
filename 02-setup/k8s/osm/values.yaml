@@ -143,6 +143,10 @@ osm:
         - secretName: grafana-cert
           hosts:
             - "setup02-grafana.tailac05db.ts.net"
+  ro:
+    image:
+      repository: ghcr.io/kube-nfv/osm-ro
+      tag: latest
 
   nbi:
     ingress:
