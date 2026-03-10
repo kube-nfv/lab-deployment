@@ -1,5 +1,7 @@
 kube-vim:
   vim:
+    image:
+      pullPolicy: Always
     nodeSelector:
       node.kubernetes.io/location: cloud
     tolerations:
@@ -7,6 +9,23 @@ kube-vim:
       operator: Equal
       value: cloud
       effect: NoSchedule
+
+    service:
+      type: LoadBalancer
+      loadBalancerClass: tailscale
+      annotations:
+        tailscale.com/proxy-class: default-proxy-class
+        tailscale.com/hostname: setup02-kube-vim-grpc
+    
+    config:
+      image:
+        storageClass: local 
+      compute:
+        tolerations:
+        - key: node.kubernetes.io/location
+          operator: Equal
+          value: edge
+          effect: NoSchedule
 
   gateway:
     nodeSelector:
