@@ -1,0 +1,66 @@
+vnfd:
+  id: ubuntu-data-vnf
+  product-name: ubuntu-data-vnf
+  description: Ubuntu 20.04 VNF with management and data interfaces
+  version: "1.0"
+
+  sw-image-desc:
+    - id: ubuntu20.04-kubevim
+      name: focal-server-cloudimg-amd64
+      image: focal-server-cloudimg-amd64
+      vim-type: kubevim
+
+  virtual-compute-desc:
+    - id: ubuntu-data-VM-compute
+      virtual-cpu:
+        num-virtual-cpu: 2
+      virtual-memory:
+        size: 2.0
+
+  virtual-storage-desc:
+    - id: ubuntu-data-VM-storage
+      size-of-storage: 20
+
+  vdu:
+    - id: ubuntu-data-VM
+      name: ubuntu-data-vm
+      description: Ubuntu 20.04 VM
+      sw-image-desc: ubuntu20.04-kubevim
+      virtual-compute-desc: ubuntu-data-VM-compute
+      virtual-storage-desc:
+        - ubuntu-data-VM-storage
+      cloud-init-file: cloud-init.cfg
+      int-cpd:
+        - id: eth0-int
+          virtual-network-interface-requirement:
+            - name: eth0
+              virtual-interface:
+                type: PARAVIRT
+        - id: eth1-int
+          virtual-network-interface-requirement:
+            - name: eth1
+              virtual-interface:
+                type: PARAVIRT
+
+  ext-cpd:
+    - id: vnf-mgmt-ext
+      int-cpd:
+        vdu-id: ubuntu-data-VM
+        cpd: eth0-int
+    - id: vnf-data-ext
+      int-cpd:
+        vdu-id: ubuntu-data-VM
+        cpd: eth1-int
+
+  mgmt-cp: vnf-mgmt-ext
+
+  df:
+    - id: default-df
+      vdu-profile:
+        - id: ubuntu-data-VM
+          min-number-of-instances: 1
+      instantiation-level:
+        - id: default-instantiation-level
+          vdu-level:
+            - vdu-id: ubuntu-data-VM
+              number-of-instances: 1

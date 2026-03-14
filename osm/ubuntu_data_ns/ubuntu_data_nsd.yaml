@@ -1,0 +1,32 @@
+nsd:
+  nsd:
+    - id: ubuntu-data-ns
+      name: ubuntu-data-ns
+      description: NS with Ubuntu 20.04 VNF connected to mgmt and provider data network
+      version: "1.0"
+
+      vnfd-id:
+        - ubuntu-data-vnf
+
+      virtual-link-desc:
+        - id: mgmtnet
+          mgmt-network: true
+        - id: datanet
+          provider-network:
+            physical-network: ens9
+            segmentation_id: 30
+
+      df:
+        - id: default-df
+          vnf-profile:
+            - id: vnf
+              vnfd-id: ubuntu-data-vnf
+              virtual-link-connectivity:
+                - virtual-link-profile-id: mgmtnet
+                  constituent-cpd-id:
+                    - constituent-base-element-id: vnf
+                      constituent-cpd-id: vnf-mgmt-ext
+                - virtual-link-profile-id: datanet
+                  constituent-cpd-id:
+                    - constituent-base-element-id: vnf
+                      constituent-cpd-id: vnf-data-ext

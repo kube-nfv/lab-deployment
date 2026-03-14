@@ -9,3 +9,7 @@ creation_rules:
     key_groups:
       - age:
           - age144ehqvphpdmvkpntzu56wphw9rrezpu8j0j3kccq8lq2ufc9c96ss3fnkt # Dmytro Malovanyi
+  - path_regex: osm/.ssh/.*
+    key_groups:
+      - age:
+          - age144ehqvphpdmvkpntzu56wphw9rrezpu8j0j3kccq8lq2ufc9c96ss3fnkt # Dmytro Malovanyi

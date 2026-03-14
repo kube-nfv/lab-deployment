@@ -1,0 +1,2 @@
+f2c9b920509c40d7a4fbae398fc35a2f	ubuntu_data_vnf/ubuntu_data_vnfd.yaml
+93c6bd5ce75f6ce751d3c87692518047	ubuntu_data_vnf/cloud_init/cloud-init.cfg
