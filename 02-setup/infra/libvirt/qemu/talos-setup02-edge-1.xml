@@ -72,6 +72,11 @@
       <source network='setup02-edge'/>
       <model type='virtio'/>
     </interface>
+    <interface type='network'>
+      <mac address='52:54:00:16:e9:07'/>
+      <source network='speed-network0'/>
+      <model type='virtio'/>
+    </interface>
     <serial type='pty'>
       <target type='isa-serial' port='0'>
         <model name='isa-serial'/>
