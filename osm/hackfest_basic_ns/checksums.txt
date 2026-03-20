@@ -1,0 +1,2 @@
+d9daf12e6cb22673210d55fa75fa8b97	hackfest_basic_ns/hackfest_basic_nsd.yaml
+bc681c5a4c3cdc09c013df2d2239f3d2	hackfest_basic_ns/icons/osm.png

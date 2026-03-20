@@ -1,0 +1,69 @@
+vnfd:
+  description: A basic VNF descriptor w/ one VDU
+  df:
+  - id: default-df
+    instantiation-level:
+    - id: default-instantiation-level
+      vdu-level:
+      - number-of-instances: 1
+        vdu-id: hackfest_basic-VM
+    vdu-profile:
+    - id: hackfest_basic-VM
+      min-number-of-instances: 1
+  ext-cpd:
+  - id: vnf-cp0-ext
+    int-cpd:
+      cpd: vdu-eth0-int
+      vdu-id: hackfest_basic-VM
+  id: hackfest_basic-vnf
+  mgmt-cp: vnf-cp0-ext
+  product-name: hackfest_basic-vnf
+  sw-image-desc:
+  - id: ubuntu20.04
+    image: ubuntu20.04
+    name: ubuntu20.04
+  - id: ubuntu20.04-aws
+    name: ubuntu20.04-aws
+    image: ubuntu/images/hvm-ssd/ubuntu-focal-20.04-amd64-server-20231025
+    vim-type: aws
+  - id: ubuntu20.04-azure
+    name: ubuntu20.04-azure
+    image: Canonical:0001-com-ubuntu-server-focal:20_04-lts:latest
+    vim-type: azure
+  - id: ubuntu20.04-gcp
+    name: ubuntu20.04-gcp
+    image: ubuntu-os-cloud:image-family:ubuntu-2004-lts
+    vim-type: gcp
+  - id: ubuntu20.04-kubevim
+    name: focal-server-cloudimg-amd64
+    image: focal-server-cloudimg-amd64
+    vim-type: kubevim
+  vdu:
+  - id: hackfest_basic-VM
+    name: hackfest-basic-vm
+    sw-image-desc: ubuntu20.04
+    alternative-sw-image-desc:
+    - ubuntu20.04-aws
+    - ubuntu20.04-azure
+    - ubuntu20.04-gcp
+    - ubuntu20.04-kubevim
+    virtual-compute-desc: hackfest_basic-VM-compute
+    virtual-storage-desc:
+    - hackfest_basic-VM-storage
+    int-cpd:
+    - id: vdu-eth0-int
+      virtual-network-interface-requirement:
+      - name: vdu-eth0
+        virtual-interface:
+          type: PARAVIRT
+  version: 1.0
+  virtual-compute-desc:
+  - id: hackfest_basic-VM-compute
+    virtual-cpu:
+      num-virtual-cpu: 1
+    virtual-memory:
+      size: 1.0
+  virtual-storage-desc:
+  - id: hackfest_basic-VM-storage
+    size-of-storage: 15
+
