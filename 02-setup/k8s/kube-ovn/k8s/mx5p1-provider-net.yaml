@@ -1,0 +1,10 @@
+apiVersion: kubeovn.io/v1
+kind: ProviderNetwork
+metadata:
+  name: mx5p1
+spec:
+  defaultInterface: ens9f1np1
+  nodeSelector:
+    matchLabels:
+      kubernetes.io/hostname: setup02-x11spl-f-worker-1
+      kubernetes.io/arch: amd64

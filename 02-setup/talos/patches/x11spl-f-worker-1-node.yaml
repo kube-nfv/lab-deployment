@@ -1,0 +1,29 @@
+machine:
+  install:
+    disk: /dev/sdb
+  network:
+    interfaces:
+    - interface: ens9f0np0
+      ignore: true
+    - interface: ens9f1np1
+      ignore: true
+---
+apiVersion: v1alpha1
+kind: HostnameConfig
+hostname: setup02-x11spl-f-worker-1
+auto: off
+---
+apiVersion: v1alpha1
+kind: VolumeConfig
+name: EPHEMERAL
+provisioning:
+  maxSize: 50GiB
+---
+apiVersion: v1alpha1
+kind: RawVolumeConfig
+name: linstor-data
+provisioning:
+  diskSelector:
+    match: system_disk
+  minSize: 100GiB
+  maxSize: 180GiB

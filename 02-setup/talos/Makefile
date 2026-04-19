@@ -66,6 +66,22 @@ gen-config-edge-worker-1: ## Generate edge-worker-1 config
 		--force
 	@echo "✓ Edge-worker-1 config: $(CONFIGS_DIR)/edge-worker-1.yaml"
 
+gen-config-x11spl-f-worker-1: ## Generate x11spl-f-worker-1 config
+	@echo "Generating x11spl-f-worker-1 config (endpoint: $(CLUSTER_ENDPOINT))..."
+	mkdir -p $(CONFIGS_DIR)
+	talosctl gen config $(CLUSTER_NAME) $(CLUSTER_ENDPOINT) \
+		--with-secrets $(SECRETS_FILE) \
+		--kubernetes-version $(KUBERNETES_VERSION) \
+		--talos-version $(TALOS_VERSION) \
+		--config-patch @$(PATCHES_DIR)/base.yaml \
+		--config-patch @$(PATCHES_DIR)/edge-nodes.yaml \
+		--config-patch @$(PATCHES_DIR)/tailscale.yaml \
+		--config-patch @$(PATCHES_DIR)/x11spl-f-worker-1-node.yaml \
+		--output $(CONFIGS_DIR)/x11spl-f-worker-1.yaml \
+		--output-types worker \
+		--force
+	@echo "✓ x11spl-f-worker-1 config: $(CONFIGS_DIR)/x11spl-f-worker-1.yaml"
+
 ##@ All
 
 gen-talosconfig: ## Generate talosconfig
@@ -78,7 +94,7 @@ gen-talosconfig: ## Generate talosconfig
 		--force
 	@echo "✓ Talosconfig: $(CONFIGS_DIR)/talosconfig"
 
-gen-config: gen-config-master1 gen-config-worker1 gen-config-edge-worker-1 gen-talosconfig ## Generate all machine configs
+gen-config: gen-config-master1 gen-config-worker1 gen-config-edge-worker-1 gen-config-x11spl-f-worker-1 gen-talosconfig ## Generate all machine configs
 	@echo "✓ All configs generated in $(CONFIGS_DIR)/"
 
 ##@ Cleanup

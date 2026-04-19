@@ -43,20 +43,34 @@ nfsServer:
   enabled: false
 
 extraManifests:
-- apiVersion: piraeus.io/v1
-  kind: LinstorSatelliteConfiguration
-  metadata:
-    name: zfs-storage
-  spec:
-    storagePools:
-    - name: data
-      zfsPool:
-        zPool: data
-      source:
-        hostDevices:
-        - /dev/vdb
-    nodeSelector:
-      node.kubernetes.io/location: edge
+#- apiVersion: piraeus.io/v1
+#  kind: LinstorSatelliteConfiguration
+#  metadata:
+#    name: zfs-storage-edge-worker-1
+#  spec:
+#    storagePools:
+#    - name: data
+#      zfsPool:
+#        zPool: data
+#      source:
+#        hostDevices:
+#        - /dev/vdb
+#    nodeSelector:
+#      kubernetes.io/hostname: setup02-edge-worker-1
+#- apiVersion: piraeus.io/v1
+#  kind: LinstorSatelliteConfiguration
+#  metadata:
+#    name: zfs-storage-x11spl-f-worker-1
+#  spec:
+#    storagePools:
+#    - name: data
+#      zfsPool:
+#        zPool: data
+#      source:
+#        hostDevices:
+#        - /dev/sdb7
+#    nodeSelector:
+#      kubernetes.io/hostname: setup02-x11spl-f-worker-1
 - apiVersion: storage.k8s.io/v1
   kind: StorageClass
   metadata:
