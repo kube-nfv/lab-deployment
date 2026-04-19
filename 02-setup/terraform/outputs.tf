@@ -15,7 +15,7 @@ output "pd_csi_sa_email" {
 }
 
 # Infrastructure outputs
-output "boot_assets_bucket" {
-  description = "GCS bucket name for boot assets"
-  value       = module.infrastructure.boot_assets_bucket
-}
+#output "boot_assets_bucket" {
+#  description = "GCS bucket name for boot assets"
+#  value       = module.infrastructure.boot_assets_bucket
+#}

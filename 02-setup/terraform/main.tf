@@ -18,11 +18,11 @@ module "talos_cluster" {
   allowed_cidrs       = var.allowed_cidrs
 }
 
-module "infrastructure" {
-  source = "./modules/infrastructure"
-
-  project_id              = var.project_id
-  region                  = var.region
-  cluster_name            = var.cluster_name
-  boot_assets_bucket_name = var.boot_assets_bucket_name
-}
+#module "infrastructure" {
+#  source = "./modules/infrastructure"
+#
+#  project_id              = var.project_id
+#  region                  = var.region
+#  cluster_name            = var.cluster_name
+#  boot_assets_bucket_name = var.boot_assets_bucket_name
+#}
