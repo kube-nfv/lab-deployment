@@ -41,6 +41,7 @@ gen-config-worker1: ## Generate cloud worker-1 config
 		--kubernetes-version $(KUBERNETES_VERSION) \
 		--talos-version $(TALOS_VERSION) \
 		--config-patch @$(PATCHES_DIR)/base.yaml \
+		--config-patch @$(PATCHES_DIR)/registry-auth.yaml \
 		--config-patch @$(PATCHES_DIR)/cloud-nodes.yaml \
 		--config-patch @$(PATCHES_DIR)/tailscale.yaml \
 		--output $(CONFIGS_DIR)/cloud-worker-1.yaml \
