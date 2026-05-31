@@ -29,9 +29,10 @@ spec:
       {{- include "osm.selectorLabels" . | nindent 6 }}
   template:
     metadata:
-      {{- with .Values.global.podAnnotations }}
+      {{- $annotations := merge (dict) (.Values.ro.podAnnotations | default dict) (.Values.global.podAnnotations | default dict) }}
+      {{- if $annotations }}
       annotations:
-        {{- toYaml . | nindent 8 }}
+        {{- toYaml $annotations | nindent 8 }}
       {{- end }}
       labels:
         app.kubernetes.io/component: ro

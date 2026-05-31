@@ -73,16 +73,17 @@ vim:
     image:
       http: {}
     network:
-      mgmt:
-        underlay:
-          providerNetwork:
-            defaultInterface: eth1
-          vlan:
-            id: 100
-          subnet:
-            protocol: "IPv4"
-            cidrBlock: 172.17.0.0/16
-            gateway: 172.17.0.1
+      # Optional kube-vim-managed shared management network. When enabled,
+      # kube-vim ensures a kube-OVN Vpc + Subnet + NetworkAttachmentDefinition
+      # exist at startup. See docs/management-network.md in the kube-vim repo.
+      managementNetwork:
+        enabled: false
+        name: osm-mgmt
+        cidr: 10.240.0.0/24
+        # gateway: ""                  # defaults to first usable IP of cidr
+        # excludeIps: []
+        # netAttachDefName: ""         # defaults to {name}-subnet-0-netattach
+        # netAttachDefNamespace: ""    # defaults to k8s.namespace
 
 # Gateway configuration
 gateway:

@@ -147,12 +147,25 @@ osm:
     image:
       repository: ghcr.io/kube-nfv/osm-ro
       tag: latest
+      pullPolicy: Always
+    # Attach RO to the kube-vim-managed shared mgmt subnet so it can SSH into
+    # VMs at their mgmt IPs (inject_ssh_key). The two annotations work together:
+    # the first tells Multus which NAD to use; the second tells kube-OVN which
+    # logical switch backs it (without it kube-OVN falls back to ovn-default).
+    # See kube-vim/docs/management-network.md.
+    podAnnotations:
+      k8s.v1.cni.cncf.io/networks: kube-vim/osm-mgmt-subnet-0-netattach
+      osm-mgmt-subnet-0-netattach.kube-vim.ovn.kubernetes.io/logical_switch: osm-mgmt-subnet-0
 
   nbi:
     ingress:
       host: "setup02-nbi.tailac05db.ts.net"
 
   ngui:
+    image:
+      repository: ghcr.io/retelith/osm-ngui
+      tag: dev-d17f5f2
+      pullPolicy: Always
     ingress:
       host: "setup02-gui.tailac05db.ts.net"
 

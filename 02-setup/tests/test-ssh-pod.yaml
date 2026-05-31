@@ -3,8 +3,8 @@ kind: Pod
 metadata:
   name: ssh-client
   annotations:
-    k8s.v1.cni.cncf.io/networks: mgmtnet-subnet-0-netattach
-    mgmtnet-subnet-0-netattach.kube-vim.ovn.kubernetes.io/logical_switch: mgmtnet-subnet-0
+    k8s.v1.cni.cncf.io/networks: osm-mgmt-subnet-0-netattach
+    osm-mgmt-subnet-0-netattach.kube-vim.ovn.kubernetes.io/logical_switch: osm-mgmt-subnet-0
 spec:
   tolerations:
   - key: node.kubernetes.io/location

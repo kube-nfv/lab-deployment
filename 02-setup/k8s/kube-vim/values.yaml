@@ -19,13 +19,18 @@ kube-vim:
     
     config:
       image:
-        storageClass: local 
+        storageClass: local
       compute:
         tolerations:
         - key: node.kubernetes.io/location
           operator: Equal
           value: edge
           effect: NoSchedule
+      network:
+        managementNetwork:
+          enabled: true
+          name: osm-mgmt
+          cidr: 10.240.0.0/24
 
   gateway:
     nodeSelector:
