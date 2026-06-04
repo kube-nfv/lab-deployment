@@ -1,0 +1,3 @@
+apiVersion: v2
+name: sriov-network-operator
+version: 0.0.1

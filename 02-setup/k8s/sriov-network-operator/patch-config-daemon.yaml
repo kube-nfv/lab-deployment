@@ -1,0 +1,13 @@
+- op: add
+  path: /spec/template/spec/volumes/-
+  value:
+    name: var-etc-sriov
+    hostPath:
+      path: /var/etc/sriov-operator
+      type: DirectoryOrCreate
+
+- op: add
+  path: /spec/template/spec/containers/0/volumeMounts/-
+  value:
+    name: var-etc-sriov
+    mountPath: /host/etc/sriov-operator

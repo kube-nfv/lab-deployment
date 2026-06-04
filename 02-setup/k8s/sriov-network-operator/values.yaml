@@ -1,0 +1,18 @@
+operator:
+  nodeSelector:
+    node.kubernetes.io/location: cloud
+  tolerations:
+    - key: node.kubernetes.io/location
+      operator: Equal
+      value: cloud
+      effect: NoSchedule
+  hostEtcPath: "/var/etc"
+  hostUdevPath: "/usr/etc/udev"
+
+images:
+  operator: ghcr.io/kube-nfv/sriov-network-operator:latest
+
+sriovOperatorConfig:
+  deploy: true
+  configDaemonNodeSelector:
+    node.kubernetes.io/location: edge
