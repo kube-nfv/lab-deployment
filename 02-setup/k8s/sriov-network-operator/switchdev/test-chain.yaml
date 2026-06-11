@@ -1,0 +1,73 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: chain-pod1
+  namespace: default
+  annotations:
+    # net1 = PF0 VF (Port0 side, Net1), net2 = PF0 VF (internal, Net2)
+    k8s.v1.cni.cncf.io/networks: sriov-pf0-switchdev,sriov-pf0-int
+spec:
+  nodeSelector:
+    node.kubernetes.io/location: edge
+  tolerations:
+    - key: node.kubernetes.io/location
+      operator: Equal
+      value: edge
+      effect: NoSchedule
+  containers:
+    - name: forwarder
+      image: nicolaka/netshoot
+      command: ["/bin/bash", "-c"]
+      args:
+        - |
+          sysctl -w net.ipv4.ip_forward=1
+          ip addr add 10.10.1.10/24 dev net1
+          ip addr add 10.10.0.1/24 dev net2
+          ip link set net1 up
+          ip link set net2 up
+          ip route add 10.10.2.0/24 via 10.10.0.2 dev net2
+          sleep infinity
+      securityContext:
+        privileged: true
+      resources:
+        requests:
+          openshift.io/mlx_vf_pf0: "2"
+        limits:
+          openshift.io/mlx_vf_pf0: "2"
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: chain-pod2
+  namespace: default
+  annotations:
+    # net1 = PF1 VF (internal, Net2), net2 = PF1 VF (Port1 side, Net3)
+    k8s.v1.cni.cncf.io/networks: sriov-pf1-int,sriov-pf1-switchdev
+spec:
+  nodeSelector:
+    node.kubernetes.io/location: edge
+  tolerations:
+    - key: node.kubernetes.io/location
+      operator: Equal
+      value: edge
+      effect: NoSchedule
+  containers:
+    - name: forwarder
+      image: nicolaka/netshoot
+      command: ["/bin/bash", "-c"]
+      args:
+        - |
+          sysctl -w net.ipv4.ip_forward=1
+          ip addr add 10.10.0.2/24 dev net1
+          ip addr add 10.10.2.10/24 dev net2
+          ip link set net1 up
+          ip link set net2 up
+          ip route add 10.10.1.0/24 via 10.10.0.1 dev net1
+          sleep infinity
+      securityContext:
+        privileged: true
+      resources:
+        requests:
+          openshift.io/mlx_vf_pf1: "2"
+        limits:
+          openshift.io/mlx_vf_pf1: "2"

@@ -1,0 +1,15 @@
+apiVersion: sriovnetwork.openshift.io/v1
+kind: SriovNetworkNodePolicy
+metadata:
+  name: mlx-pf0
+  namespace: sriov-network-operator
+spec:
+  nodeSelector:
+    node.kubernetes.io/location: edge
+  resourceName: mlx_vf_pf0
+  numVfs: 2
+  nicSelector:
+    pfNames:
+      - ens9f0np0
+  deviceType: netdevice
+  eSwitchMode: switchdev

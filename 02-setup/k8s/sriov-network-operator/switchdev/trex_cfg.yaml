@@ -1,0 +1,21 @@
+### TRex config for switchdev chain test ###
+# Cabling:
+#   02:00.0 -> NIC Port1 (ens9f1np1) -> pod2/net2 (10.10.2.10)
+#   02:00.1 -> NIC Port0 (ens9f0np0) -> pod1/net1 (10.10.1.10)
+
+- version: 2
+  interfaces: ['02:00.0', '02:00.1']
+  port_info:
+      - ip: 10.10.2.1
+        default_gw: 10.10.2.10
+      - ip: 10.10.1.1
+        default_gw: 10.10.1.10
+
+  port_limit: 2
+
+  platform:
+      master_thread_id: 0
+      latency_thread_id: 1
+      dual_if:
+        - socket: 0
+          threads: [2,3,4,5,6,7,8,9,10,11,12,13,14,15]

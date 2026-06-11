@@ -1,0 +1,38 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: sriov-router
+  namespace: default
+  annotations:
+    k8s.v1.cni.cncf.io/networks: default/sriov-vlan100,default/sriov-vlan200
+spec:
+  nodeSelector:
+    node.kubernetes.io/location: edge
+  tolerations:
+    - key: node.kubernetes.io/location
+      operator: Equal
+      value: edge
+      effect: NoSchedule
+  containers:
+    - name: router
+      image: nicolaka/netshoot
+      command: ["/bin/bash", "-c"]
+      args:
+        - |
+          sysctl -w net.ipv4.ip_forward=1
+          ip addr add 192.168.181.2/24 dev net1
+          ip addr add 192.168.192.2/24 dev net2
+          ip link set net1 up
+          ip link set net2 up
+          ping -I net1 192.168.181.10 -i 1 -q > /dev/null 2>&1 &
+          ping -I net2 192.168.192.10 -i 1 -q > /dev/null 2>&1 &
+          sleep infinity
+      securityContext:
+        privileged: true
+      resources:
+        requests:
+          openshift.io/mlx_vf_pf0: "1"
+          openshift.io/mlx_vf_pf1: "1"
+        limits:
+          openshift.io/mlx_vf_pf0: "1"
+          openshift.io/mlx_vf_pf1: "1"

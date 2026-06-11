@@ -7,7 +7,7 @@ operator:
       value: cloud
       effect: NoSchedule
   hostEtcPath: "/var/etc"
-  hostUdevPath: "/usr/etc/udev"
+  hostUdevPath: "/var/etc/udev"
 
 images:
   operator: ghcr.io/kube-nfv/sriov-network-operator:latest

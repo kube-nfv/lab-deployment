@@ -1,0 +1,15 @@
+apiVersion: k8s.cni.cncf.io/v1
+kind: NetworkAttachmentDefinition
+metadata:
+  name: sriov-pf0-int
+  namespace: default
+  annotations:
+    k8s.v1.cni.cncf.io/resourceName: openshift.io/mlx_vf_pf0
+spec:
+  config: |
+    {
+      "cniVersion": "0.3.1",
+      "name": "sriov-pf0-int",
+      "type": "sriov",
+      "ipam": {}
+    }
