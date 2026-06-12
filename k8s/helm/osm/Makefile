@@ -5,3 +5,4 @@ update:
 	patch --no-backup-if-mismatch -p 1 < patches/use-tailscale-ingress.patch
 	patch --no-backup-if-mismatch -p 1 < patches/preserve-osm-secret-on-upgrade.patch
 	patch --no-backup-if-mismatch -p 1 < patches/ro-pod-annotations.patch
+	patch --no-backup-if-mismatch -p 1 < patches/configurable-grafana-secret.patch

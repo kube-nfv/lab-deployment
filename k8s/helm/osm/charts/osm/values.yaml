@@ -342,8 +342,7 @@ mon:
   # replicaCount: 1
   useOsmSecret: true
   # secretName: "mon-secret"
-  config:
-    OSMMON_GRAFANA_URL: "http://grafana:80"
+  config: {}
 
 mongodb:
   enabled: true
@@ -602,9 +601,6 @@ prometheus:
               static_configs:
                 - targets:
                   - localhost:9090
-            - job_name: node
-              static_configs:
-                - targets: ['osm-prometheus-node-exporter:9100']
   alertmanager:
     enabled: true
     fullnameOverride: "alertmanager"

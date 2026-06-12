@@ -2,3 +2,7 @@ apiVersion: v2
 name: osm
 description: Open Source MANO umbrella chart
 version: 0.0.1
+dependencies:
+  - name: osm
+    version: 19.0.0
+    repository: "file://charts/osm"

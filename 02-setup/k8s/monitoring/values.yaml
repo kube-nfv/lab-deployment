@@ -1,0 +1,89 @@
+prometheus:
+  prometheusSpec:
+    nodeSelector:
+      node.kubernetes.io/location: cloud
+    tolerations:
+      - key: node.kubernetes.io/location
+        operator: Equal
+        value: cloud
+        effect: NoSchedule
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          storageClassName: pd-standard
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 20Gi
+  ingress:
+    enabled: true
+    ingressClassName: tailscale
+    annotations:
+      tailscale.com/proxy-class: default-proxy-class
+    hosts:
+      - "setup02-mon-prometheus.tailac05db.ts.net"
+    tls:
+      - secretName: prometheus-cert
+        hosts:
+          - "setup02-mon-prometheus.tailac05db.ts.net"
+
+grafana:
+  nodeSelector:
+    node.kubernetes.io/location: cloud
+  tolerations:
+    - key: node.kubernetes.io/location
+      operator: Equal
+      value: cloud
+      effect: NoSchedule
+  persistence:
+    enabled: true
+    storageClassName: pd-standard
+    size: 2Gi
+  ingress:
+    enabled: true
+    ingressClassName: tailscale
+    annotations:
+      tailscale.com/proxy-class: default-proxy-class
+    hosts:
+      - "setup02-mon-grafana.tailac05db.ts.net"
+    tls:
+      - secretName: grafana-cert
+        hosts:
+          - "setup02-mon-grafana.tailac05db.ts.net"
+
+prometheusOperator:
+  nodeSelector:
+    node.kubernetes.io/location: cloud
+  tolerations:
+    - key: node.kubernetes.io/location
+      operator: Equal
+      value: cloud
+      effect: NoSchedule
+  admissionWebhooks:
+    patch:
+      nodeSelector:
+        node.kubernetes.io/location: cloud
+      tolerations:
+        - key: node.kubernetes.io/location
+          operator: Equal
+          value: cloud
+          effect: NoSchedule
+
+# DaemonSet — tolerate every node taint so node-exporter lands on all 3 nodes.
+prometheus-node-exporter:
+  tolerations:
+    - key: node.kubernetes.io/location
+      operator: Exists
+      effect: NoSchedule
+    - key: node-role.kubernetes.io/control-plane
+      operator: Exists
+      effect: NoSchedule
+
+kube-state-metrics:
+  nodeSelector:
+    node.kubernetes.io/location: cloud
+  tolerations:
+    - key: node.kubernetes.io/location
+      operator: Equal
+      value: cloud
+      effect: NoSchedule

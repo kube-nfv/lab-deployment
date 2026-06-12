@@ -99,15 +99,7 @@ osm:
         storageClass: "pd-standard"
         size: 8Gi
       ingress:
-        ingressClassName: tailscale
-        annotations:
-          tailscale.com/proxy-class: default-proxy-class
-        hosts:
-          - "setup02-prometheus.tailac05db.ts.net"
-        tls:
-          - secretName: prometheus-cert
-            hosts:
-              - "setup02-prometheus.tailac05db.ts.net"
+        enabled: false
     alertmanager:
       nodeSelector:
         node.kubernetes.io/location: cloud
@@ -128,27 +120,7 @@ osm:
           effect: NoSchedule
 
   grafana:
-    nodeSelector:
-      node.kubernetes.io/location: cloud
-    tolerations:
-      - key: node.kubernetes.io/location
-        operator: Equal
-        value: cloud
-        effect: NoSchedule
-    persistence:
-      enabled: true
-      storageClassName: "pd-standard"
-      size: 2Gi
-    ingress:
-      ingressClassName: tailscale
-      annotations:
-        tailscale.com/proxy-class: default-proxy-class
-      hosts:
-        - "setup02-grafana.tailac05db.ts.net"
-      tls:
-        - secretName: grafana-cert
-          hosts:
-            - "setup02-grafana.tailac05db.ts.net"
+    enabled: false
   ro:
     image:
       repository: ghcr.io/kube-nfv/osm-ro
@@ -162,6 +134,11 @@ osm:
     podAnnotations:
       k8s.v1.cni.cncf.io/networks: kube-vim/osm-mgmt-subnet-0-netattach
       osm-mgmt-subnet-0-netattach.kube-vim.ovn.kubernetes.io/logical_switch: osm-mgmt-subnet-0
+
+  mon:
+    grafanaSecretName: "grafana-monitoring"
+    config:
+      OSMMON_GRAFANA_URL: "http://grafana.monitoring.svc.cluster.local:80"
 
   nbi:
     ingress:

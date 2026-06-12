@@ -1,0 +1,28 @@
+alertmanager:
+  enabled: false
+
+# Skip the ~40 default PrometheusRule CRs (KubeAPIDown, KubeletDown, NodeFilesystem*, etc.) —
+# with alertmanager disabled, they have nowhere to route to anyway.
+defaultRules:
+  create: false
+
+grafana:
+  # Fixed name so OSM mon can resolve grafana.<ns>.svc by a stable hostname.
+  fullnameOverride: "grafana"
+  # Drop the ~20 dashboards kube-prometheus-stack ships (k8s cluster/node/pod/etcd/...).
+  defaultDashboardsEnabled: false
+  additionalDataSources:
+    # OSM Prometheus holds OSM-specific metrics (vm_status, ns_topology, vnf_status, mon_exporter)
+    # that are not present here. The sidecar (opensourcemano/prometheus) in the osm namespace
+    # writes scrape targets dynamically from MongoDB, making these metrics unavailable via
+    # federation — Grafana must query the OSM Prometheus directly.
+    - name: osm_prometheus
+      type: prometheus
+      url: http://prometheus.osm.svc.cluster.local:9090
+      access: proxy
+      isDefault: false
+  sidecar:
+    dashboards:
+      enabled: true
+      # mon writes dashboard ConfigMaps into the osm namespace; sidecar must watch ALL.
+      searchNamespace: ALL
