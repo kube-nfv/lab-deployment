@@ -7,7 +7,7 @@ machine:
       - name: drbd_transport_tcp
       - name: zfs
   install:
-    image: factory.talos.dev/metal-installer/a8ad47991d81dfcd999311bf3b86900e19b39e55b76f0ca77fe9e9f4c803e4e3:v1.12.6
+    image: factory.talos.dev/metal-installer/dd4c55ac62d0fcebfb2189927a204d5bddce05dbfee89a8ee1d557e1d416f800:v1.13.3
   nodeLabels:
     topology.kubernetes.io/region: edge
     topology.kubernetes.io/zone: edge-site-1

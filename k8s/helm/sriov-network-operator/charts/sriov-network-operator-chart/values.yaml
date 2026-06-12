@@ -29,6 +29,8 @@ operator:
   resourcePrefix: "openshift.io"
   cniBinPath: "/opt/cni/bin"
   hostEtcPath: "/etc"
+  hostUdevPath: "/etc/udev"
+  imagePullPolicy: IfNotPresent
   clusterType: "kubernetes"
   # minimal amount of time (in minutes) the operator will wait before removing
   # stale SriovNetworkNodeState objects (objects that doesn't match node with the daemon)

@@ -41,7 +41,6 @@ spec:
       containers:
         - name: {{ include "sriov-network-operator.fullname" . }}
           image: {{ .Values.images.operator }}
-          imagePullPolicy: Always
           command:
             - sriov-network-operator
           securityContext:
@@ -124,6 +123,8 @@ spec:
               value: {{ .Values.operator.cniBinPath }}
             - name: SRIOV_HOST_ETC_PATH
               value: {{ .Values.operator.hostEtcPath }}
+            - name: SRIOV_HOST_UDEV_PATH
+              value: {{ .Values.operator.hostUdevPath }}
             - name: CLUSTER_TYPE
               value: {{ .Values.operator.clusterType }}
             - name: STALE_NODE_STATE_CLEANUP_DELAY_MINUTES

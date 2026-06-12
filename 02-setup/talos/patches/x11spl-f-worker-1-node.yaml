@@ -7,6 +7,18 @@ machine:
       ignore: true
     - interface: ens9f1np1
       ignore: true
+  files:
+    - path: /var/etc/udev/switchdev-vf-link-name.sh
+      permissions: 0755
+      op: create
+      content: |
+        #!/bin/bash
+        PORT="$1"
+        echo "NUMBER=${PORT##pf*vf}"
+  udev:
+    rules:
+      - 'SUBSYSTEM=="net", ACTION=="add|move", ATTRS{phys_switch_id}=="984bf30003ebc008", ATTR{phys_port_name}=="pf0vf*", IMPORT{program}="/var/etc/udev/switchdev-vf-link-name.sh $attr{phys_port_name}", NAME="ens9f0np0_$env{NUMBER}"'
+      - 'SUBSYSTEM=="net", ACTION=="add|move", ATTRS{phys_switch_id}=="984bf30003ebc008", ATTR{phys_port_name}=="pf1vf*", IMPORT{program}="/var/etc/udev/switchdev-vf-link-name.sh $attr{phys_port_name}", NAME="ens9f1np1_$env{NUMBER}"'
 ---
 apiVersion: v1alpha1
 kind: HostnameConfig

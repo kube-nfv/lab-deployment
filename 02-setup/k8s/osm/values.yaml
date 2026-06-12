@@ -63,6 +63,8 @@ osm:
           operator: Equal
           value: cloud
           effect: NoSchedule
+      persistence:
+        storageClass: "pd-standard"
 
   mysql:
     primary:
@@ -73,6 +75,8 @@ osm:
           operator: Equal
           value: cloud
           effect: NoSchedule
+      persistence:
+        storageClass: "pd-standard"
 
   prometheus:
     kube-state-metrics:
@@ -112,6 +116,8 @@ osm:
           operator: Equal
           value: cloud
           effect: NoSchedule
+      persistence:
+        storageClass: "pd-standard"
     prometheus-pushgateway:
       nodeSelector:
         node.kubernetes.io/location: cloud
