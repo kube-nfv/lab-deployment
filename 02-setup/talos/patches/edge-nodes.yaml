@@ -6,6 +6,8 @@ machine:
           - usermode_helper=disabled
       - name: drbd_transport_tcp
       - name: zfs
+      - name: vfio_pci
+      - name: vfio_iommu_type1
   install:
     image: factory.talos.dev/metal-installer/dd4c55ac62d0fcebfb2189927a204d5bddce05dbfee89a8ee1d557e1d416f800:v1.13.3
   nodeLabels:

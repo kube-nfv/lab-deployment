@@ -1,0 +1,63 @@
+apiVersion: sriovnetwork.openshift.io/v1
+kind: SriovNetworkNodePolicy
+metadata:
+  name: mlx-pf0-vfio
+  namespace: sriov-network-operator
+spec:
+  nodeSelector:
+    node.kubernetes.io/location: edge
+  resourceName: mlx_vf_pf0_vfio
+  numVfs: 64
+  nicSelector:
+    pfNames:
+      - ens9f0np0#0-39
+  deviceType: vfio-pci
+  eSwitchMode: switchdev
+---
+apiVersion: sriovnetwork.openshift.io/v1
+kind: SriovNetworkNodePolicy
+metadata:
+  name: mlx-pf0-netdev
+  namespace: sriov-network-operator
+spec:
+  nodeSelector:
+    node.kubernetes.io/location: edge
+  resourceName: mlx_vf_pf0_netdev
+  numVfs: 64
+  nicSelector:
+    pfNames:
+      - ens9f0np0#40-63
+  deviceType: netdevice
+  eSwitchMode: switchdev
+---
+apiVersion: sriovnetwork.openshift.io/v1
+kind: SriovNetworkNodePolicy
+metadata:
+  name: mlx-pf1-vfio
+  namespace: sriov-network-operator
+spec:
+  nodeSelector:
+    node.kubernetes.io/location: edge
+  resourceName: mlx_vf_pf1_vfio
+  numVfs: 64
+  nicSelector:
+    pfNames:
+      - ens9f1np1#0-39
+  deviceType: vfio-pci
+  eSwitchMode: switchdev
+---
+apiVersion: sriovnetwork.openshift.io/v1
+kind: SriovNetworkNodePolicy
+metadata:
+  name: mlx-pf1-netdev
+  namespace: sriov-network-operator
+spec:
+  nodeSelector:
+    node.kubernetes.io/location: edge
+  resourceName: mlx_vf_pf1_netdev
+  numVfs: 64
+  nicSelector:
+    pfNames:
+      - ens9f1np1#40-63
+  deviceType: netdevice
+  eSwitchMode: switchdev
