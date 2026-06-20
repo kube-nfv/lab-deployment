@@ -7,18 +7,34 @@ machine:
       ignore: true
     - interface: ens9f1np1
       ignore: true
-  files:
-    - path: /var/etc/udev/switchdev-vf-link-name.sh
-      permissions: 0755
-      op: create
-      content: |
-        #!/bin/bash
-        PORT="$1"
-        echo "NUMBER=${PORT##pf*vf}"
-  udev:
-    rules:
-      - 'SUBSYSTEM=="net", ACTION=="add|move", ATTRS{phys_switch_id}=="984bf30003ebc008", ATTR{phys_port_name}=="pf0vf*", IMPORT{program}="/var/etc/udev/switchdev-vf-link-name.sh $attr{phys_port_name}", NAME="ens9f0np0_$env{NUMBER}"'
-      - 'SUBSYSTEM=="net", ACTION=="add|move", ATTRS{phys_switch_id}=="984bf30003ebc008", ATTR{phys_port_name}=="pf1vf*", IMPORT{program}="/var/etc/udev/switchdev-vf-link-name.sh $attr{phys_port_name}", NAME="ens9f1np1_$env{NUMBER}"'
+    - deviceSelector:
+        busPath: "0000:b3:00.*"
+        driver: mlx5_core
+      ignore: true
+  # NOTE: sriov-network-operator's switchdev VF representor renaming is NOT
+  # supported on Talos. The operator's helper rule deployed at
+  # /var/etc/udev/rules.d/20-switchdev-*.rules uses
+  # IMPORT{program}="/etc/udev/switchdev-vf-link-name.sh ..." which requires a
+  # shell to execute (#!/bin/bash). Talos is a minimal OS with no shell
+  # (/bin/bash, /bin/sh, awk, sed, etc. do not exist), so IMPORT{program} of any
+  # shell script will silently fail and $env{NUMBER} stays empty.
+  # Consequence: representors keep their default kernel names (ens9fXrN) instead
+  # of the operator's expected (ens9fXnpY_N) convention, and the
+  # `manageSoftwareBridges` feature gate of sriov-network-operator will not
+  # function correctly. Representor-to-OVS bridge attachment must be managed
+  # manually instead. Block below kept for reference — DO NOT enable as-is.
+  # files:
+  #   - path: /var/etc/udev/switchdev-vf-link-name.sh
+  #     permissions: 0755
+  #     op: create
+  #     content: |
+  #       #!/bin/bash
+  #       PORT="$1"
+  #       echo "NUMBER=${PORT##pf*vf}"
+  # udev:
+  #   rules:
+  #     - 'SUBSYSTEM=="net", ACTION=="add|move", ATTRS{phys_switch_id}=="3cde3d0003c288a0", ATTR{phys_port_name}=="pf0vf*", IMPORT{program}="/var/etc/udev/switchdev-vf-link-name.sh $attr{phys_port_name}", NAME="ens9f0np0_$env{NUMBER}"'
+  #     - 'SUBSYSTEM=="net", ACTION=="add|move", ATTRS{phys_switch_id}=="3cde3d0003c288a0", ATTR{phys_port_name}=="pf1vf*", IMPORT{program}="/var/etc/udev/switchdev-vf-link-name.sh $attr{phys_port_name}", NAME="ens9f1np1_$env{NUMBER}"'
 ---
 apiVersion: v1alpha1
 kind: HostnameConfig
