@@ -1,0 +1,26 @@
+# The sriov metrics-exporter kube-rbac-proxy sidecar mounts the TLS secret
+# `metrics-exporter-cert` unconditionally, but the operator only provisions that
+# secret on OpenShift (via the service.beta.openshift.io/serving-cert-secret-name
+# annotation / service-ca). On vanilla Kubernetes the secret never exists and the
+# exporter pod is stuck in ContainerCreating. Provision it with cert-manager here.
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: sriov-metrics-selfsigned-issuer
+  namespace: sriov-network-operator
+spec:
+  selfSigned: {}
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: sriov-metrics-exporter-cert
+  namespace: sriov-network-operator
+spec:
+  secretName: metrics-exporter-cert
+  dnsNames:
+    - sriov-network-metrics-exporter-service.sriov-network-operator.svc
+    - sriov-network-metrics-exporter-service.sriov-network-operator.svc.cluster.local
+  issuerRef:
+    name: sriov-metrics-selfsigned-issuer
+    kind: Issuer

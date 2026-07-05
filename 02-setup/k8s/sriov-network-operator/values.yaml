@@ -10,9 +10,11 @@ operator:
   hostUdevPath: "/var/etc/udev"
 
 images:
-  operator: ghcr.io/kube-nfv/sriov-network-operator:latest
+  operator: ghcr.io/kube-nfv/sriov-network-operator:56ff3adfe5e5a1294bb32da6fc31a3a2663e4049
 
 sriovOperatorConfig:
   deploy: true
   configDaemonNodeSelector:
     node.kubernetes.io/location: edge
+  featureGates:
+    metricsExporter: true

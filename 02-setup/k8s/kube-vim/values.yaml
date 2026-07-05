@@ -17,7 +17,18 @@ kube-vim:
         tailscale.com/proxy-class: default-proxy-class
         tailscale.com/hostname: setup02-kube-vim-grpc
     
+    metrics:
+      serviceMonitor:
+        enabled: true
+        # Prometheus (kube-prometheus-stack) only selects ServiceMonitors labeled
+        # release=monitoring; without this the SM is created but never scraped.
+        labels:
+          release: monitoring
+
     config:
+      monitoring:
+        enabled: true
+        metricsPort: 9095
       image:
         storageClass: local
       compute:

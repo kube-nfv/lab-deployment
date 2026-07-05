@@ -1,0 +1,27 @@
+# The sriov metrics exporter is fronted by a kube-rbac-proxy: metrics are served
+# over HTTPS and require an authenticated bearer token. The proxy presents a
+# cert-manager self-signed cert (see metrics-exporter-cert.yaml), so
+# insecureSkipVerify is used. The Prometheus SA token is authorized via the
+# nonResourceURL /metrics grant in the kube-prometheus-stack cluster role.
+# release=monitoring is required for Prometheus to select the SM.
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: sriov-network-metrics-exporter
+  namespace: monitoring
+  labels:
+    release: monitoring
+spec:
+  namespaceSelector:
+    matchNames:
+      - sriov-network-operator
+  selector:
+    matchLabels:
+      name: sriov-network-metrics-exporter-service
+  endpoints:
+    - port: sriov-network-metrics
+      scheme: https
+      interval: 30s
+      bearerTokenFile: /var/run/secrets/kubernetes.io/serviceaccount/token
+      tlsConfig:
+        insecureSkipVerify: true
