@@ -7,10 +7,10 @@ spec:
   nodeSelector:
     node.kubernetes.io/location: edge
   resourceName: mlx_vf_pf0_vfio
-  numVfs: 64
+  numVfs: 18
   nicSelector:
     pfNames:
-      - ens9f0np0#0-39
+      - ens9f0np0#0-11
   deviceType: vfio-pci
   eSwitchMode: switchdev
 ---
@@ -23,10 +23,10 @@ spec:
   nodeSelector:
     node.kubernetes.io/location: edge
   resourceName: mlx_vf_pf0_netdev
-  numVfs: 64
+  numVfs: 18
   nicSelector:
     pfNames:
-      - ens9f0np0#40-63
+      - ens9f0np0#12-17
   deviceType: netdevice
   eSwitchMode: switchdev
 ---
@@ -39,10 +39,10 @@ spec:
   nodeSelector:
     node.kubernetes.io/location: edge
   resourceName: mlx_vf_pf1_vfio
-  numVfs: 64
+  numVfs: 18
   nicSelector:
     pfNames:
-      - ens9f1np1#0-39
+      - ens9f1np1#0-11
   deviceType: vfio-pci
   eSwitchMode: switchdev
 ---
@@ -55,9 +55,9 @@ spec:
   nodeSelector:
     node.kubernetes.io/location: edge
   resourceName: mlx_vf_pf1_netdev
-  numVfs: 64
+  numVfs: 18
   nicSelector:
     pfNames:
-      - ens9f1np1#40-63
+      - ens9f1np1#12-17
   deviceType: netdevice
   eSwitchMode: switchdev

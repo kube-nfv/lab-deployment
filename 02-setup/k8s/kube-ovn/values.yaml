@@ -8,6 +8,8 @@ kube-ovn:
   # Use a join CIDR outside the Tailscale range.
   ipv4:
     JOIN_CIDR: "10.200.0.0/16"
+  func:
+    HW_OFFLOAD: true
   # NOTE: kube-OVN DaemonSets (kube-ovn-cni, ovs-ovn, kube-ovn-pinger) use wildcard
   # tolerations (effect: NoSchedule, operator: Exists) in upstream templates — they run
   # on all nodes regardless of node.kubernetes.io/location taints. Verify this is

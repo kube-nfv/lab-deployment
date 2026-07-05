@@ -3,7 +3,7 @@ machine:
     disk: /dev/vda
   network:
     interfaces:
-    - interface: ens9
+    - interface: ens9*
       ignore: true
 ---
 apiVersion: v1alpha1

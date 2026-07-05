@@ -11,30 +11,64 @@ machine:
         busPath: "0000:b3:00.*"
         driver: mlx5_core
       ignore: true
-  # NOTE: sriov-network-operator's switchdev VF representor renaming is NOT
-  # supported on Talos. The operator's helper rule deployed at
-  # /var/etc/udev/rules.d/20-switchdev-*.rules uses
-  # IMPORT{program}="/etc/udev/switchdev-vf-link-name.sh ..." which requires a
-  # shell to execute (#!/bin/bash). Talos is a minimal OS with no shell
-  # (/bin/bash, /bin/sh, awk, sed, etc. do not exist), so IMPORT{program} of any
-  # shell script will silently fail and $env{NUMBER} stays empty.
-  # Consequence: representors keep their default kernel names (ens9fXrN) instead
-  # of the operator's expected (ens9fXnpY_N) convention, and the
-  # `manageSoftwareBridges` feature gate of sriov-network-operator will not
-  # function correctly. Representor-to-OVS bridge attachment must be managed
-  # manually instead. Block below kept for reference — DO NOT enable as-is.
-  # files:
-  #   - path: /var/etc/udev/switchdev-vf-link-name.sh
-  #     permissions: 0755
-  #     op: create
-  #     content: |
-  #       #!/bin/bash
-  #       PORT="$1"
-  #       echo "NUMBER=${PORT##pf*vf}"
-  # udev:
-  #   rules:
-  #     - 'SUBSYSTEM=="net", ACTION=="add|move", ATTRS{phys_switch_id}=="3cde3d0003c288a0", ATTR{phys_port_name}=="pf0vf*", IMPORT{program}="/var/etc/udev/switchdev-vf-link-name.sh $attr{phys_port_name}", NAME="ens9f0np0_$env{NUMBER}"'
-  #     - 'SUBSYSTEM=="net", ACTION=="add|move", ATTRS{phys_switch_id}=="3cde3d0003c288a0", ATTR{phys_port_name}=="pf1vf*", IMPORT{program}="/var/etc/udev/switchdev-vf-link-name.sh $attr{phys_port_name}", NAME="ens9f1np1_$env{NUMBER}"'
+  # NOTE: switchdev VF representor renaming on Talos.
+  #
+  # sriov-network-operator CANNOT do this renaming on Talos, for three reasons:
+  #   1. Its rule uses IMPORT{program}=".../switchdev-vf-link-name.sh" which needs
+  #      a shell (#!/bin/bash). Talos has no shell, so it silently fails.
+  #   2. The operator writes its rules to /var/etc/udev/rules.d (via the host-etc
+  #      volumeMount, since /etc is read-only on Talos), a directory udevd never
+  #      scans. udevd reads /usr/lib/udev/rules.d (RO), /run/udev/rules.d, and
+  #      /etc/udev/rules.d.
+  #   3. The operator container has no udevadm and a separate /run, so it cannot
+  #      reload/trigger the host udevd anyway.
+  #
+  # Solution: declare the rules statically here. Talos writes them to
+  # /usr/lib/udev/rules.d/99-talos.rules; the host udevd loads them at boot and
+  # applies them natively on the representor "add" event when the operator creates
+  # the VFs. No shell, no IMPORT{program} — one exact-match rule per VF, with the
+  # VF index taken straight from phys_port_name (pf<port>vf<N> -> NAME=<pf>_<N>).
+  #
+  # Enumerated for this node: switch_id 3cde3d0003c288a0, ens9f0np0 (pf0) and
+  # ens9f1np1 (pf1), numVfs=18 each. If numVfs changes, regenerate this list.
+  udev:
+    rules:
+    - 'SUBSYSTEM=="net", ACTION=="add|move", ATTRS{phys_switch_id}=="3cde3d0003c288a0", ATTR{phys_port_name}=="pf0vf0", NAME="ens9f0np0_0"'
+    - 'SUBSYSTEM=="net", ACTION=="add|move", ATTRS{phys_switch_id}=="3cde3d0003c288a0", ATTR{phys_port_name}=="pf0vf1", NAME="ens9f0np0_1"'
+    - 'SUBSYSTEM=="net", ACTION=="add|move", ATTRS{phys_switch_id}=="3cde3d0003c288a0", ATTR{phys_port_name}=="pf0vf2", NAME="ens9f0np0_2"'
+    - 'SUBSYSTEM=="net", ACTION=="add|move", ATTRS{phys_switch_id}=="3cde3d0003c288a0", ATTR{phys_port_name}=="pf0vf3", NAME="ens9f0np0_3"'
+    - 'SUBSYSTEM=="net", ACTION=="add|move", ATTRS{phys_switch_id}=="3cde3d0003c288a0", ATTR{phys_port_name}=="pf0vf4", NAME="ens9f0np0_4"'
+    - 'SUBSYSTEM=="net", ACTION=="add|move", ATTRS{phys_switch_id}=="3cde3d0003c288a0", ATTR{phys_port_name}=="pf0vf5", NAME="ens9f0np0_5"'
+    - 'SUBSYSTEM=="net", ACTION=="add|move", ATTRS{phys_switch_id}=="3cde3d0003c288a0", ATTR{phys_port_name}=="pf0vf6", NAME="ens9f0np0_6"'
+    - 'SUBSYSTEM=="net", ACTION=="add|move", ATTRS{phys_switch_id}=="3cde3d0003c288a0", ATTR{phys_port_name}=="pf0vf7", NAME="ens9f0np0_7"'
+    - 'SUBSYSTEM=="net", ACTION=="add|move", ATTRS{phys_switch_id}=="3cde3d0003c288a0", ATTR{phys_port_name}=="pf0vf8", NAME="ens9f0np0_8"'
+    - 'SUBSYSTEM=="net", ACTION=="add|move", ATTRS{phys_switch_id}=="3cde3d0003c288a0", ATTR{phys_port_name}=="pf0vf9", NAME="ens9f0np0_9"'
+    - 'SUBSYSTEM=="net", ACTION=="add|move", ATTRS{phys_switch_id}=="3cde3d0003c288a0", ATTR{phys_port_name}=="pf0vf10", NAME="ens9f0np0_10"'
+    - 'SUBSYSTEM=="net", ACTION=="add|move", ATTRS{phys_switch_id}=="3cde3d0003c288a0", ATTR{phys_port_name}=="pf0vf11", NAME="ens9f0np0_11"'
+    - 'SUBSYSTEM=="net", ACTION=="add|move", ATTRS{phys_switch_id}=="3cde3d0003c288a0", ATTR{phys_port_name}=="pf0vf12", NAME="ens9f0np0_12"'
+    - 'SUBSYSTEM=="net", ACTION=="add|move", ATTRS{phys_switch_id}=="3cde3d0003c288a0", ATTR{phys_port_name}=="pf0vf13", NAME="ens9f0np0_13"'
+    - 'SUBSYSTEM=="net", ACTION=="add|move", ATTRS{phys_switch_id}=="3cde3d0003c288a0", ATTR{phys_port_name}=="pf0vf14", NAME="ens9f0np0_14"'
+    - 'SUBSYSTEM=="net", ACTION=="add|move", ATTRS{phys_switch_id}=="3cde3d0003c288a0", ATTR{phys_port_name}=="pf0vf15", NAME="ens9f0np0_15"'
+    - 'SUBSYSTEM=="net", ACTION=="add|move", ATTRS{phys_switch_id}=="3cde3d0003c288a0", ATTR{phys_port_name}=="pf0vf16", NAME="ens9f0np0_16"'
+    - 'SUBSYSTEM=="net", ACTION=="add|move", ATTRS{phys_switch_id}=="3cde3d0003c288a0", ATTR{phys_port_name}=="pf0vf17", NAME="ens9f0np0_17"'
+    - 'SUBSYSTEM=="net", ACTION=="add|move", ATTRS{phys_switch_id}=="3cde3d0003c288a0", ATTR{phys_port_name}=="pf1vf0", NAME="ens9f1np1_0"'
+    - 'SUBSYSTEM=="net", ACTION=="add|move", ATTRS{phys_switch_id}=="3cde3d0003c288a0", ATTR{phys_port_name}=="pf1vf1", NAME="ens9f1np1_1"'
+    - 'SUBSYSTEM=="net", ACTION=="add|move", ATTRS{phys_switch_id}=="3cde3d0003c288a0", ATTR{phys_port_name}=="pf1vf2", NAME="ens9f1np1_2"'
+    - 'SUBSYSTEM=="net", ACTION=="add|move", ATTRS{phys_switch_id}=="3cde3d0003c288a0", ATTR{phys_port_name}=="pf1vf3", NAME="ens9f1np1_3"'
+    - 'SUBSYSTEM=="net", ACTION=="add|move", ATTRS{phys_switch_id}=="3cde3d0003c288a0", ATTR{phys_port_name}=="pf1vf4", NAME="ens9f1np1_4"'
+    - 'SUBSYSTEM=="net", ACTION=="add|move", ATTRS{phys_switch_id}=="3cde3d0003c288a0", ATTR{phys_port_name}=="pf1vf5", NAME="ens9f1np1_5"'
+    - 'SUBSYSTEM=="net", ACTION=="add|move", ATTRS{phys_switch_id}=="3cde3d0003c288a0", ATTR{phys_port_name}=="pf1vf6", NAME="ens9f1np1_6"'
+    - 'SUBSYSTEM=="net", ACTION=="add|move", ATTRS{phys_switch_id}=="3cde3d0003c288a0", ATTR{phys_port_name}=="pf1vf7", NAME="ens9f1np1_7"'
+    - 'SUBSYSTEM=="net", ACTION=="add|move", ATTRS{phys_switch_id}=="3cde3d0003c288a0", ATTR{phys_port_name}=="pf1vf8", NAME="ens9f1np1_8"'
+    - 'SUBSYSTEM=="net", ACTION=="add|move", ATTRS{phys_switch_id}=="3cde3d0003c288a0", ATTR{phys_port_name}=="pf1vf9", NAME="ens9f1np1_9"'
+    - 'SUBSYSTEM=="net", ACTION=="add|move", ATTRS{phys_switch_id}=="3cde3d0003c288a0", ATTR{phys_port_name}=="pf1vf10", NAME="ens9f1np1_10"'
+    - 'SUBSYSTEM=="net", ACTION=="add|move", ATTRS{phys_switch_id}=="3cde3d0003c288a0", ATTR{phys_port_name}=="pf1vf11", NAME="ens9f1np1_11"'
+    - 'SUBSYSTEM=="net", ACTION=="add|move", ATTRS{phys_switch_id}=="3cde3d0003c288a0", ATTR{phys_port_name}=="pf1vf12", NAME="ens9f1np1_12"'
+    - 'SUBSYSTEM=="net", ACTION=="add|move", ATTRS{phys_switch_id}=="3cde3d0003c288a0", ATTR{phys_port_name}=="pf1vf13", NAME="ens9f1np1_13"'
+    - 'SUBSYSTEM=="net", ACTION=="add|move", ATTRS{phys_switch_id}=="3cde3d0003c288a0", ATTR{phys_port_name}=="pf1vf14", NAME="ens9f1np1_14"'
+    - 'SUBSYSTEM=="net", ACTION=="add|move", ATTRS{phys_switch_id}=="3cde3d0003c288a0", ATTR{phys_port_name}=="pf1vf15", NAME="ens9f1np1_15"'
+    - 'SUBSYSTEM=="net", ACTION=="add|move", ATTRS{phys_switch_id}=="3cde3d0003c288a0", ATTR{phys_port_name}=="pf1vf16", NAME="ens9f1np1_16"'
+    - 'SUBSYSTEM=="net", ACTION=="add|move", ATTRS{phys_switch_id}=="3cde3d0003c288a0", ATTR{phys_port_name}=="pf1vf17", NAME="ens9f1np1_17"'
 ---
 apiVersion: v1alpha1
 kind: HostnameConfig
