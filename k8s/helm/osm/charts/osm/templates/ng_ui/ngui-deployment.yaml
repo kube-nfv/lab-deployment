@@ -58,6 +58,18 @@ spec:
               memory: 1024Mi
             requests:
               memory: 128Mi
+          {{- if (.Values.ngui.config | default dict).grafanaUrl }}
+          volumeMounts:
+            - name: ngui-config
+              mountPath: /usr/share/nginx/html/assets/config/config.json
+              subPath: config.json
+          {{- end }}
+      {{- if (.Values.ngui.config | default dict).grafanaUrl }}
+      volumes:
+        - name: ngui-config
+          configMap:
+            name: ngui-config
+      {{- end }}
       {{- with .Values.global.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}

@@ -1,0 +1,42 @@
+diff --git a/charts/osm/templates/ng_ui/ngui-configmap.yaml b/charts/osm/templates/ng_ui/ngui-configmap.yaml
+new file mode 100644
+--- /dev/null
++++ b/charts/osm/templates/ng_ui/ngui-configmap.yaml
+@@ -0,0 +1,13 @@
++{{- if and .Values.ngui.enabled (.Values.ngui.config | default dict).grafanaUrl -}}
++apiVersion: v1
++kind: ConfigMap
++metadata:
++  name: ngui-config
++  labels:
++    {{- include "osm.labels" . | nindent 4 }}
++data:
++  config.json: |
++    {
++      "grafanaUrl": "{{ (.Values.ngui.config | default dict).grafanaUrl }}"
++    }
++{{- end }}
+diff --git a/charts/osm/templates/ng_ui/ngui-deployment.yaml b/charts/osm/templates/ng_ui/ngui-deployment.yaml
+--- a/charts/osm/templates/ng_ui/ngui-deployment.yaml
++++ b/charts/osm/templates/ng_ui/ngui-deployment.yaml
+@@ -56,6 +56,18 @@ spec:
+           resources:
+             limits:
+               memory: 1024Mi
+             requests:
+               memory: 128Mi
++          {{- if (.Values.ngui.config | default dict).grafanaUrl }}
++          volumeMounts:
++            - name: ngui-config
++              mountPath: /usr/share/nginx/html/assets/config/config.json
++              subPath: config.json
++          {{- end }}
++      {{- if (.Values.ngui.config | default dict).grafanaUrl }}
++      volumes:
++        - name: ngui-config
++          configMap:
++            name: ngui-config
++      {{- end }}
+       {{- with .Values.global.nodeSelector }}
+       nodeSelector:
+         {{- toYaml . | nindent 8 }}

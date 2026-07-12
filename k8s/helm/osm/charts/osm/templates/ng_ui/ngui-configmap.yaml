@@ -1,0 +1,13 @@
+{{- if and .Values.ngui.enabled (.Values.ngui.config | default dict).grafanaUrl -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ngui-config
+  labels:
+    {{- include "osm.labels" . | nindent 4 }}
+data:
+  config.json: |
+    {
+      "grafanaUrl": "{{ (.Values.ngui.config | default dict).grafanaUrl }}"
+    }
+{{- end }}
