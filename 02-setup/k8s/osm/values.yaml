@@ -147,8 +147,10 @@ osm:
   ngui:
     image:
       repository: ghcr.io/retelith/osm-ngui
-      tag: dev-d17f5f2
+      tag: dev-bb7fc21
       pullPolicy: Always
+    config:
+      grafanaUrl: "https://setup02-mon-grafana.tailac05db.ts.net"
     ingress:
       host: "setup02-gui.tailac05db.ts.net"
 
@@ -161,6 +163,8 @@ osm:
       host: "setup02-webhook.tailac05db.ts.net"
 
   airflow:
+    defaultAirflowRepository: ghcr.io/kube-nfv/osm-ng-sa
+    defaultAirflowTag: "v1.19.0"
     ingress:
       web:
         ingressClassName: tailscale

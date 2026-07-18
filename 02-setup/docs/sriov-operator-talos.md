@@ -131,21 +131,27 @@ This is the only value change required for Talos. Everything else (the volume mo
 
 ### Udev Rules for Switchdev VF Representor Naming — `02-setup/talos/patches/x11spl-f-worker-1-node.yaml`
 
+One **exact-match rule per VF** — no shell, no `IMPORT{program}`. The VF index is
+taken straight from `phys_port_name` (`pf<port>vf<N>` → `NAME=<pf>_<N>`). The list
+is enumerated for this node (`numVfs=18` per PF); regenerate it if `numVfs`
+changes.
+
 ```yaml
 machine:
-  files:
-    - path: /var/etc/udev/switchdev-vf-link-name.sh
-      permissions: 0755
-      op: create
-      content: |
-        #!/bin/bash
-        PORT="$1"
-        echo "NUMBER=${PORT##pf*vf}"
   udev:
     rules:
-      - 'SUBSYSTEM=="net", ACTION=="add|move", ATTRS{phys_switch_id}=="984bf30003ebc008", ATTR{phys_port_name}=="pf0vf*", IMPORT{program}="/var/etc/udev/switchdev-vf-link-name.sh $attr{phys_port_name}", NAME="ens9f0np0_$env{NUMBER}"'
-      - 'SUBSYSTEM=="net", ACTION=="add|move", ATTRS{phys_switch_id}=="984bf30003ebc008", ATTR{phys_port_name}=="pf1vf*", IMPORT{program}="/var/etc/udev/switchdev-vf-link-name.sh $attr{phys_port_name}", NAME="ens9f1np1_$env{NUMBER}"'
+      - 'SUBSYSTEM=="net", ACTION=="add|move", ATTRS{phys_switch_id}=="3cde3d0003c288a0", ATTR{phys_port_name}=="pf0vf0", NAME="ens9f0np0_0"'
+      - 'SUBSYSTEM=="net", ACTION=="add|move", ATTRS{phys_switch_id}=="3cde3d0003c288a0", ATTR{phys_port_name}=="pf0vf1", NAME="ens9f0np0_1"'
+      # ... pf0vf2 .. pf0vf17 ...
+      - 'SUBSYSTEM=="net", ACTION=="add|move", ATTRS{phys_switch_id}=="3cde3d0003c288a0", ATTR{phys_port_name}=="pf1vf0", NAME="ens9f1np1_0"'
+      # ... pf1vf1 .. pf1vf17 ...
 ```
+
+> Full list (36 rules) in `02-setup/talos/patches/x11spl-f-worker-1-node.yaml`.
+> An earlier revision used a single wildcard rule (`pf0vf*`) with an
+> `IMPORT{program}` helper script deriving the index; it was replaced with the
+> explicit per-VF form above (no shell dependency at udev time, and each rule is
+> a stable exact match).
 
 #### Why these rules are needed
 
@@ -159,7 +165,11 @@ Talos machine config udev rules are written to `/usr/lib/udev/rules.d/99-talos.r
 
 #### phys_switch_id
 
-`984bf30003ebc008` is the hardware-stable switch identifier for the Mellanox ConnectX card in `setup02-x11spl-f-worker-1`. Both ports (`ens9f0np0` on PF0, `ens9f1np1` on PF1) share the same `phys_switch_id` — it identifies the card, not the port. The `phys_port_name` attribute (`pf0vf*` / `pf1vf*`) distinguishes between ports.
+`3cde3d0003c288a0` is the hardware-stable switch identifier for the Mellanox ConnectX card currently in `setup02-x11spl-f-worker-1`. Both ports (`ens9f0np0` on PF0, `ens9f1np1` on PF1) share the same `phys_switch_id` — it identifies the card, not the port. The `phys_port_name` attribute (`pf0vf*` / `pf1vf*`) distinguishes between ports. This value is **card-specific**: it changes if the NIC is replaced, so verify it against the live node before regenerating the rules:
+
+```
+kubectl exec -n kube-system <ovs-ovn-pod> -c openvswitch -- cat /sys/class/net/ens9f0np0/phys_switch_id
+```
 
 ---
 

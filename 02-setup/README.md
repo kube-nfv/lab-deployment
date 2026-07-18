@@ -488,6 +488,50 @@ kubectl run test-edge --image=busybox --restart=Never \
 
 ---
 
+### Operational Note: CoreDNS and the `location` node taints
+
+Every node in this cluster carries a `node.kubernetes.io/location` **`NoSchedule`** taint —
+`cloud` on the control-plane and cloud workers (`talos/patches/cloud-nodes.yaml`,
+`controlplane.yaml`) and `edge` on edge nodes (`talos/patches/edge-nodes.yaml`). Workloads
+must explicitly tolerate their target location; the app charts (kube-vim, sriov, osm) already
+do.
+
+**The gotcha:** Talos-managed system components do **not** tolerate these custom taints.
+CoreDNS is the notable one — its Deployment is a Talos bootstrap manifest and ships only the
+standard control-plane/`not-ready` tolerations, so its pods cannot schedule on *any* node once
+all nodes are tainted. A running coredns pod survives (a `NoSchedule` taint does not evict
+already-running pods), which masks the problem — until a rollout happens.
+
+**Symptom:** after `talosctl upgrade-k8s`, the coredns rollout hangs. New pods sit `Pending`
+with `FailedScheduling: untolerated taint {node.kubernetes.io/location}`, the Deployment is
+stuck at `1/2`, and DNS runs on a single grandfathered pod (no HA).
+
+**Root cause:** `upgrade-k8s` re-applies Talos's **default** coredns bootstrap manifest, which
+overwrites any manually added toleration. Talos exposes no machine-config field for coredns
+tolerations — `cluster.coreDNS` only supports `disabled` and `image` — so a `kubectl` patch is
+**not durable** and is wiped on every `upgrade-k8s`.
+
+**Stopgap** (restores HA immediately, but reverts on the next `upgrade-k8s`):
+
+```bash
+kubectl patch deploy coredns -n kube-system --type=json \
+  -p='[{"op":"add","path":"/spec/template/spec/tolerations/-","value":{"key":"node.kubernetes.io/location","operator":"Exists","effect":"NoSchedule"}}]'
+```
+
+**Durable options:**
+
+| Option | How | Trade-off |
+|--------|-----|-----------|
+| Soften the taint (recommended for the lab) | Drop the `location` `NoSchedule` taint on cloud/control-plane nodes (or make it `PreferNoSchedule`) in `cloud-nodes.yaml`/`controlplane.yaml` | Stock coredns schedules freely; weakens cloud-node isolation |
+| Label + `nodeSelector` isolation | Replace location *taints* with location *labels* and have workloads target via `nodeSelector`/affinity | Cleanest, prod-portable; larger change to the scheduling model |
+| Self-manage coredns | `cluster.coreDNS.disabled: true` + ship your own coredns (with the toleration) via `cluster.inlineManifests` | Survives upgrades; you own coredns and lose Talos's automatic version bumps |
+
+> The same "customization lost on upgrade" caveat applies to any Talos-managed bootstrap
+> manifest (see the Flannel note in Phase 7). Prefer a machine-config or taint-model fix over a
+> live `kubectl` patch for anything that must survive `upgrade-k8s`.
+
+---
+
 ### Verification
 
 Run the connectivity test suite from `02-setup/tests/`:

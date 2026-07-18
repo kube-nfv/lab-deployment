@@ -11,6 +11,13 @@ operator:
 
 images:
   operator: ghcr.io/kube-nfv/sriov-network-operator:56ff3adfe5e5a1294bb32da6fc31a3a2663e4049
+  # Pin ovs-cni-plugin to a release tag. The chart default is untagged, which
+  # resolves to :latest — a rolling main-branch build. A post-2025-11-01 :latest
+  # was built with vishvananda/netlink v1.3.2-0.20251101063711, whose LinkByName()
+  # no longer returns per-VF info (Attrs().Vfs empty). ovs-cni sriov.go relies on
+  # that for HW-offload VF attach, so it panics/errors and SR-IOV VMs never start.
+  # v0.39.0 uses netlink v1.2.1-beta.2 (pre-regression). Do not revert to :latest.
+  ovsCni: ghcr.io/k8snetworkplumbingwg/ovs-cni-plugin:v0.39.0
 
 sriovOperatorConfig:
   deploy: true
