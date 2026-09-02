@@ -1,0 +1,37 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: test-linstor
+  namespace: default
+spec:
+  accessModes: ["ReadWriteOnce"]
+  storageClassName: local
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: test-linstor
+  namespace: default
+spec:
+  # pool "data" is edge-only and the SC forbids remote access, so pin to the edge node
+  nodeSelector:
+    node.kubernetes.io/location: edge
+  tolerations:
+  - key: node.kubernetes.io/location
+    operator: Equal
+    value: edge
+    effect: NoSchedule
+  containers:
+  - name: writer
+    image: busybox
+    command: ["sh", "-c", "echo linstor-ok > /data/test.txt && cat /data/test.txt && sleep 3600"]
+    volumeMounts:
+    - name: vol
+      mountPath: /data
+  volumes:
+  - name: vol
+    persistentVolumeClaim:
+      claimName: test-linstor
