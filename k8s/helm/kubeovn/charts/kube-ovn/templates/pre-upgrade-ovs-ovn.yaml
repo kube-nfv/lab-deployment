@@ -1,12 +1,12 @@
+{{- if include "kubeovn.ovn.versionCompatibility" . -}}
+---
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: kube-ovn-post-delete-hook
+  name: ovs-ovn-pre-upgrade
   namespace: {{ .Values.namespace }}
   annotations:
-    # This is what defines this resource as a hook. Without this line, the
-    # job is considered part of the release.
-    "helm.sh/hook": post-delete
+    "helm.sh/hook": pre-upgrade
     "helm.sh/hook-weight": "1"
     "helm.sh/hook-delete-policy": hook-succeeded
 automountServiceAccountToken: false
@@ -16,47 +16,46 @@ kind: ClusterRole
 metadata:
   annotations:
     rbac.authorization.k8s.io/system-only: "true"
-    # This is what defines this resource as a hook. Without this line, the
-    # job is considered part of the release.
-    "helm.sh/hook": post-delete
+    "helm.sh/hook": pre-upgrade
     "helm.sh/hook-weight": "2"
     "helm.sh/hook-delete-policy": hook-succeeded
-  name: system:kube-ovn-post-delete-hook
+  name: system:ovs-ovn-pre-upgrade
 rules:
   - apiGroups:
-      - kubeovn.io
+      - ""
     resources:
-      - subnets
-      - vpcs
-      - ips
+      - pods
     verbs:
-      - get
       - list
-      - patch
+      - get
+  - apiGroups:
+      - ""
+    resources:
+      - pods/exec
+    verbs:
+      - create
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: kube-ovn-post-delete-hook
+  name: ovs-ovn-pre-upgrade
   annotations:
-    # This is what defines this resource as a hook. Without this line, the
-    # job is considered part of the release.
-    "helm.sh/hook": post-delete
+    "helm.sh/hook": pre-upgrade
     "helm.sh/hook-weight": "3"
     "helm.sh/hook-delete-policy": hook-succeeded
 roleRef:
-  name: system:kube-ovn-post-delete-hook
+  name: system:ovs-ovn-pre-upgrade
   kind: ClusterRole
   apiGroup: rbac.authorization.k8s.io
 subjects:
   - kind: ServiceAccount
-    name: kube-ovn-post-delete-hook
+    name: ovs-ovn-pre-upgrade
     namespace: {{ .Values.namespace }}
 ---
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: "{{ .Chart.Name }}-post-delete-hook"
+  name: "{{ .Chart.Name }}-pre-upgrade-hook"
   namespace: {{ .Values.namespace }}
   labels:
     app.kubernetes.io/managed-by: {{ .Release.Service | quote }}
@@ -64,9 +63,7 @@ metadata:
     app.kubernetes.io/version: {{ .Chart.AppVersion }}
     helm.sh/chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
   annotations:
-    # This is what defines this resource as a hook. Without this line, the
-    # job is considered part of the release.
-    "helm.sh/hook": post-delete
+    "helm.sh/hook": pre-upgrade
     "helm.sh/hook-weight": "4"
     "helm.sh/hook-delete-policy": hook-succeeded
 spec:
@@ -78,7 +75,7 @@ spec:
         app.kubernetes.io/managed-by: {{ .Release.Service | quote }}
         app.kubernetes.io/instance: {{ .Release.Name | quote }}
         helm.sh/chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
-        app: kube-ovn-post-delete-hook
+        app: pre-upgrade
         component: job
     spec:
       tolerations:
@@ -94,7 +91,7 @@ spec:
                   - key: app
                     operator: In
                     values:
-                      - kube-ovn-post-delete-hook
+                      - pre-upgrade
                   - key: component
                     operator: In
                     values:
@@ -103,13 +100,13 @@ spec:
       hostNetwork: true
       nodeSelector:
         kubernetes.io/os: "linux"
-      serviceAccountName: kube-ovn-post-delete-hook
+      serviceAccountName: ovs-ovn-pre-upgrade
       automountServiceAccountToken: true
       securityContext:
         seccompProfile:
           type: RuntimeDefault
       containers:
-        - name: remove-subnet-finalizer
+        - name: ovs-ovn-pre-upgrade
           image: "{{ .Values.global.registry.address}}/{{ .Values.global.images.kubeovn.repository }}:{{ .Values.global.images.kubeovn.tag }}"
           env:
             - name: POD_NAMESPACE
@@ -117,20 +114,14 @@ spec:
                 fieldRef:
                   fieldPath: metadata.namespace
           command:
-            - sh
+            - bash
+            - -eo
+            - pipefail
             - -c
             - |
-              touch /var/log/kube-ovn/remove-finalizer.log
-              chmod 640 /var/log/kube-ovn/remove-finalizer.log
-              /kube-ovn/remove-finalizer.sh 2>&1 | tee -a /var/log/kube-ovn/remove-finalizer.log
-          resources:
-            requests:
-              cpu: 100m
-              memory: 200Mi
-            limits:
-              cpu: 1
-              memory: 500Mi
-              ephemeral-storage: 1Gi
+              touch /var/log/kube-ovn/pre-upgrade-ovs.log
+              chmod 640 /var/log/kube-ovn/pre-upgrade-ovs.log
+              bash /kube-ovn/pre-upgrade-ovs.sh 2>&1 | tee -a /var/log/kube-ovn/pre-upgrade-ovs.log
           volumeMounts:
             - mountPath: /var/log/kube-ovn
               name: kube-ovn-log
@@ -138,3 +129,4 @@ spec:
         - name: kube-ovn-log
           hostPath:
             path: {{ .Values.log_conf.LOG_DIR }}/kube-ovn
+{{- end -}}

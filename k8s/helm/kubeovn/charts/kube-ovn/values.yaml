@@ -8,11 +8,11 @@ global:
   images:
     kubeovn:
       repository: kube-ovn
-      tag: v1.15.4
+      tag: v1.16.2
     natgateway:
       repository: vpc-nat-gateway
       # Falls back to the same tag as kubeovn if empty
-      tag: v1.15.4
+      tag: v1.16.2
 
 image:
   pullPolicy: IfNotPresent
@@ -40,6 +40,9 @@ networking:
     VLAN_ID: "100"
   EXCHANGE_LINK_NAME: false
   ENABLE_EIP_SNAT: true
+  # Namespace where ovn-external-gw-config ConfigMap is located.
+  # Default is empty, which means it will use the same namespace as the controller (PodNamespace).
+  EXTERNAL_GATEWAY_CONFIG_NS: ""
   DEFAULT_SUBNET: "ovn-default"
   DEFAULT_VPC: "ovn-cluster"
   NODE_SUBNET: "join"
@@ -143,11 +146,11 @@ fullnameOverride: ""
 
 # hybrid dpdk
 HYBRID_DPDK: false
-HUGEPAGE_SIZE_TYPE: hugepages-2Mi # Default
+HUGEPAGE_SIZE_TYPE: hugepages-2Mi  # Default
 HUGEPAGES: 1Gi
-DPDK_IMAGE_TAG: "v1.15.0-dpdk"
-DPDK_CPU: "1000m" # Default CPU configuration
-DPDK_MEMORY: "2Gi" # Default Memory configuration
+DPDK_IMAGE_TAG: "v1.16.0-dpdk"
+DPDK_CPU: "1000m"  # Default CPU configuration
+DPDK_MEMORY: "2Gi"  # Default Memory configuration
 
 ovn-central:
   requests:
@@ -158,6 +161,8 @@ ovn-central:
     memory: "4Gi"
     ephemeral-storage: 1Gi
 ovs-ovn:
+  updateStrategy:
+    type: ""  # Override the DaemonSet update strategy. Leave empty to auto-detect based on the deployed version.
   requests:
     cpu: "200m"
     memory: "200Mi"
