@@ -4,10 +4,19 @@
 - op: add
   path: /spec/template/spec/nodeSelector/node.kubernetes.io~1location
   value: cloud
+# v1.65.0's cdi-operator Deployment ships no default tolerations array, so
+# create it here rather than appending to a non-existent path (/tolerations/-).
 - op: add
-  path: /spec/template/spec/tolerations/-
+  path: /spec/template/spec/tolerations
   value:
-    key: node.kubernetes.io/location
-    operator: Equal
-    value: cloud
-    effect: NoSchedule
+    - key: node.kubernetes.io/location
+      operator: Equal
+      value: cloud
+      effect: NoSchedule
+# Use our forked cdi-controller (v1.65-dv-rec-fix) which restores the
+# VolumeImportSource DataVolume status tracking dropped by upstream v1.65.0.
+# env[2] is CONTROLLER_IMAGE (env order: 0=DEPLOY_CLUSTER_RESOURCES,
+# 1=OPERATOR_VERSION, 2=CONTROLLER_IMAGE) — re-check the index on CDI bumps.
+- op: replace
+  path: /spec/template/spec/containers/0/env/2/value
+  value: ghcr.io/kube-nfv/cdi-controller:v1.65-dv-rec-fix
