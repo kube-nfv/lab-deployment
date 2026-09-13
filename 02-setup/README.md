@@ -1,575 +1,312 @@
-# 02-Setup Cloud-Edge Automatic Provisioning
+# 02-setup - cloud and edge Talos cluster over Tailscale
 
-This setup focuses on automatic provisioning of Talos edge nodes that join an existing cloud cluster with preinstalled OSM via network boot and Tailscale overlay networking.
+A single Kubernetes cluster whose control plane runs in a public cloud and whose workers
+can sit anywhere, including bare metal behind NAT at an edge site. Nodes are joined by a
+Tailscale mesh rather than a shared L2 network.
+
+Every node registers kubelet and etcd on its Tailscale address. This is what removes the
+need for a shared subnet, a public IP at the edge, or any inbound port forwarding. Talos
+adds Tailscale addresses to the API server certificate SANs, so the cluster endpoint can be
+the control plane's Tailscale address from the first apply.
+
+For versions and the component list of the reference cluster, see
+[docs/deployed-setup.md](docs/deployed-setup.md).
+
+Addresses, project names and node names below are placeholders written as `<…>`. The
+reference lab runs on cloud free tier with ephemeral external IPs, so literal values would
+be stale.
 
 ## Architecture
 
 ```
-                         Internet
-                            |
-              ┌─────────────┴─────────────┐
-              |                           |
-     ┌────────┴────────┐        ┌────────┴────────┐
-     │   Cloud Side    │        │   Edge Side      │
-     └────────┬────────┘        └────────┬────────┘
-              |                           |
-  ┌───────────┼───────────┐        ┌─────┴─────┐
-  |           |           |        |           |
-[Talos     [iPXE       [Machine  [DHCP      [Edge
- Cluster]   Server]     Config    Server]    Node]
-             |          Server]    (iPXE      (PXE Boot)
-             |           |        options)
-             └─────┬─────┘
-                   |
-            [Tailscale Network]
-                   |
-         ┌─────────┴─────────┐
-         |                   |
-    [Cloud Nodes]       [Edge Node]
+                          ┌──────────────────────────┐
+                          │           Cloud          │
+                          │  control plane + workers │
+                          │  VPC <cloud-cidr>        │
+                          └───────────┬──────────────┘
+                                      │
+                    Tailscale mesh (WireGuard, 100.64.0.0/10)
+                    kubelet, etcd and the Talos API bind here
+                                      │
+                          ┌───────────┴──────────────┐
+                          │        Edge site         │
+                          │  bare-metal worker(s)    │
+                          │  behind NAT, no inbound  │
+                          │  SR-IOV NICs for VNF     │
+                          │  dataplane               │
+                          └──────────────────────────┘
 ```
 
-## How It Works
+### Design decisions
 
-### Boot Flow
+| Decision | Choice | Reason |
+|---|---|---|
+| Overlay | Tailscale (WireGuard) | Connectivity through NAT without a public IP at the edge |
+| Kubelet and etcd node IP | Tailscale address (`100.64.0.0/10`) | One address family reachable from every node |
+| Cluster endpoint | Control plane's Tailscale address | Reachable from the edge, and stable - it is embedded in every machine config |
+| CNI | Kube-OVN, with `cluster.network.cni.name: none` | VLAN and underlay support with hardware offload, required for the NFV dataplane |
+| Multi-NIC | Multus | VNFs need more interfaces than the primary CNI provides |
+| OS | Talos Linux | Immutable and API-managed; machine config is declarative and reproducible |
+| Cloud controller | Talos CCM only | Works for both cloud and metal nodes. A vendor CCM only adds LoadBalancer and route support, which the overlay makes unnecessary |
+| Node placement | `node.kubernetes.io/location` label and NoSchedule taint | Every workload must state whether it belongs in the cloud or at the edge |
 
-1. **Edge Node PXE Boot**:
-   - Bare-metal (or QEMU) host boots with network boot option
-   - Node discovers DHCP server in the local L2 network
-
-2. **DHCP/iPXE Stage** (Edge):
-   - DHCP server is preconfigured with iPXE endpoint pointing to the cloud-based iPXE server
-   - DHCP response includes security parameters for authenticated communication
-
-3. **iPXE/HTTP Stage** (Cloud):
-   - Cloud-based iPXE server identifies the node and its target cluster
-   - Serves Talos kernel and initramfs with Tailscale extension included
-   - Sets `talos.config` kernel argument pointing to the cloud machine config endpoint
-
-4. **Talos Configuration** (Cloud):
-   - Edge node fetches machine config from the authenticated cloud endpoint
-   - Machine config contains Tailscale configuration and cluster join parameters
-   - Node joins the existing Talos cluster over the Tailscale overlay network
-
-### Security
-
-- All iPXE communication is encrypted and authenticated
-- `talos.config` kernel argument endpoint requires authenticated requests
-- Machine config is served over encrypted channels
-
-## Edge Node Preconfiguration
-
-The following infrastructure must be prepared at the edge site:
-
-1. **Management Network**:
-   - L2 network with connection to the Internet (may be NATed)
-
-2. **DHCP Server**:
-   - Must be in the same L2 domain as the edge node (or use DHCP Relay)
-   - Preconfigured options for iPXE server endpoint pointing to the cloud
-   - Security parameters for secure communication with the cloud iPXE server
-
-## Cloud Preconfiguration
-
-The following components must be available in the cloud:
-
-1. **Existing Talos Cluster**:
-   - Running cluster where the edge node will join
-   - Tailscale extension installed and configured to join the same Tailscale network as the edge node
-
-2. **iPXE Server**:
-   - Internet-reachable endpoint
-   - Correlates iPXE requests to the correct cluster
-   - Prepares boot images and kernel arguments per node
-   - Creates and serves machine config endpoint via `talos.config` kernel argument
-
-3. **Machine Config Server**:
-   - Serves Talos machine configuration referenced by the `talos.config` kernel argument
-   - Includes Tailscale join configuration and cluster membership parameters
-
-4. **Authentication & Encryption**:
-   - All iPXE and Talos machine config communication must be authenticated and encrypted
+Edge nodes are provisioned by booting an Image Factory ISO and applying a machine config
+over the local network, once. An earlier design provisioned them automatically by network
+boot against a cloud-hosted iPXE and machine-config service. That was not adopted: for a
+lab with one edge site it requires a PKI, two internet-facing services, control of the edge
+DHCP server, and an answer to how a node with no credentials proves its identity - all to
+replace a single `talosctl apply-config`. The trade-off changes with many sites, and the
+idea may return in a later setup.
 
 ## Prerequisites
 
-- Existing Talos cluster (cloud side)
-- Tailscale network and auth keys
-- iPXE server with internet-reachable endpoint
-- Machine config HTTP server
-- TLS certificates for iPXE and machine config endpoints
-- Edge site:
-  - Bare-metal or QEMU host with PXE boot support
-  - DHCP server with iPXE boot options configured
+| Tool | Notes |
+|---|---|
+| `talosctl` | Matching the minor version of the Talos release being deployed |
+| `terraform` | 1.5.0 or later |
+| `kubectl`, `helm` | |
+| `sops` with an age key | Secrets are encrypted in place, keeping the original filename |
+| Cloud credentials | Compute API enabled, e.g. `gcloud auth application-default login` |
+| A Tailscale tailnet | With a reusable, pre-authorized auth key |
 
-## Files
+The edge site needs a machine that boots from USB and has outbound internet access. No
+inbound reachability and no PXE infrastructure are required.
 
-- `README.md` - Documentation
-- `CONSIDERATIONS.md` - Implementation considerations, design decisions, and open questions
+The Makefiles pass files to their tools unchanged, and no `helm secrets` plugin is in use,
+so an encrypted file would reach `talosctl` or `helm` as `ENC[AES256_GCM,…]`. Decrypt in
+place, run the target, then re-encrypt, and do not commit in between.
 
----
+## Phase 1 - Build Talos images
 
-## Deployment Guide: Tailscale Mesh Cluster
+Images are built by [Talos Image Factory](https://factory.talos.dev). Cloud and edge nodes
+use different schematics because they need different extensions:
 
-This section documents the concrete steps to deploy the current implementation: a Talos Kubernetes cluster spanning GCP cloud nodes and a local KVM edge node, connected via a Tailscale overlay network.
+| Node type | Extensions | Schematic ID |
+|---|---|---|
+| Cloud (GCP) | `tailscale`, `gcp-guest-agent` | `4a0d65c669d46663f377e7161e50cfd570c401f26fd9e7bda34a0216b6f1922b` |
+| Edge (metal) | `tailscale` | `dd4c55ac62d0fcebfb2189927a204d5bddce05dbfee89a8ee1d557e1d416f800` |
 
-### Design Decisions
+The `tailscale` extension lets a node join the mesh before it joins the cluster. It is
+required on both sides.
 
-| Decision | Choice | Reason |
-|----------|--------|--------|
-| Overlay network | Tailscale (WireGuard) | Zero-config cross-network connectivity; works through NAT |
-| Kubelet node IP | Tailscale IP (`100.64.0.0/10`) | All nodes (cloud + edge) must be reachable by the same IP family |
-| Cluster API endpoint | Master's Tailscale IP | API server must be reachable from edge nodes; Talos auto-adds Tailscale IPs to cert SANs |
-| Pod networking | Flannel VXLAN over `tailscale0` | Pod-to-pod traffic tunneled through Tailscale, not local network |
-| Talos extensions | `tailscale` (all nodes), `gcp-guest-agent` (cloud only) | Embedded in custom Talos images from Image Factory |
+Import the cloud image once:
 
-### Prerequisites
-
-- `talosctl` installed
-- `terraform` >= 1.5.0 installed
-- `kubectl` installed
-- GCP project with Compute Engine API enabled and credentials configured (`gcloud auth application-default login`)
-- Tailscale account with a generated reusable auth key
-- SOPS + Age key configured (secrets are encrypted at rest)
-- For edge node: KVM/libvirt host with OpenVSwitch and Docker installed
-
----
-
-### Phase 1: Build Talos Images with Tailscale Extension
-
-Images are built via [Talos Image Factory](https://factory.talos.dev). The schematics used in this setup:
-
-| Node type | Extension | Schematic ID |
-|-----------|-----------|--------------|
-| Cloud (GCP) | `tailscale` + `gcp-guest-agent` | `4a0d65c669d46663f377e7161e50cfd570c401f26fd9e7bda34a0216b6f1922b` |
-| Edge (metal) | `tailscale` | `7d4c31cbd96db9f90c874990697c523482b2bae27fb4631d5583dcd9c281b1ff` |
-
-For GCP, import the image into your project:
-
-```bash
-# Download the GCP image tarball
+```sh
 curl -L -o talos-gcp.tar.gz \
-  "https://factory.talos.dev/image/4a0d65c669d46663f377e7161e50cfd570c401f26fd9e7bda34a0216b6f1922b/v1.12.4/gcp-amd64.raw.tar.gz"
-
-# Upload to GCS
+  "https://factory.talos.dev/image/<cloud-schematic-id>/<talos-version>/gcp-amd64.raw.tar.gz"
 gsutil cp talos-gcp.tar.gz gs://<your-bucket>/
-
-# Create GCP image
-gcloud compute images create talos-v1-12-4 \
+gcloud compute images create talos-<talos-version> \
   --source-uri=gs://<your-bucket>/talos-gcp.tar.gz \
   --guest-os-features=VIRTIO_SCSI_MULTIQUEUE
 ```
 
-For edge, download the metal ISO with the correct schematic from Image Factory:
+For the edge, write the metal ISO to USB and boot from it:
+
 ```
-https://factory.talos.dev/image/7d4c31cbd96db9f90c874990697c523482b2bae27fb4631d5583dcd9c281b1ff/v1.12.4/metal-amd64.iso
-```
-
-Place the ISO at `/var/lib/libvirt/images/talos-edge-tailscale.iso` on the KVM host.
-
----
-
-### Phase 2: Cloud Infrastructure (Terraform)
-
-```bash
-cd 02-setup/terraform
-
-# Decrypt tfvars (SOPS-encrypted)
-sops -d terraform.tfvars.enc > terraform.tfvars  # or however you decrypt
-
-terraform init
-terraform plan
-terraform apply
+https://factory.talos.dev/image/<edge-schematic-id>/<talos-version>/metal-amd64.iso
 ```
 
-This provisions:
-- VPC `setup02-cluster-vpc` with subnet `10.1.0.0/24`
-- Firewall rules: TCP 50000 (Talos API), TCP 6443 (Kubernetes API), all-internal
-- 2 GCE instances with static external IPs:
-  - `setup02-cluster-master-1` — e2-standard-4, 50 GB
-  - `setup02-cluster-worker-1` — e2-standard-8, 50 GB
+The installer image in `talos/patches/{cloud,edge}-nodes.yaml` must use the same
+schematic, otherwise the extensions are lost on the first upgrade.
 
-After apply, note the external IPs of both instances (used to apply the initial Talos config before Tailscale is up):
+## Phase 2 - Cloud infrastructure
 
-```bash
+```sh
+cd terraform
+sops -d -i terraform.tfvars
+terraform init && terraform plan && terraform apply
+sops -e -i terraform.tfvars
+```
+
+This creates a VPC and subnet, firewall rules for TCP 50000 (Talos API), TCP 6443
+(Kubernetes API) and internal traffic, and the control plane and worker instances with
+external IPs. Machine types and the image are set in `terraform.tfvars`; see
+`terraform.tfvars.example`.
+
+The external IPs are needed only for the first config apply, before Tailscale is running:
+
+```sh
 terraform output master_external_ip
 terraform output worker_external_ip
 ```
 
----
+## Phase 3 - Generate machine configs
 
-### Phase 3: Generate Talos Machine Configs
+Talos configs are generated from patches, never edited directly.
 
-The `talos/patches/` directory contains configuration patches applied to all generated configs:
+| Patch | Purpose |
+|---|---|
+| `base.yaml` | Binds kubelet and etcd to the Tailscale address; sets `cni.name: none` |
+| `controlplane.yaml` | Control-plane role, `location=cloud` label and taint |
+| `cloud-nodes.yaml`, `edge-nodes.yaml` | Per-location installer image, labels and taints |
+| `<node>-node.yaml` | Per-node install disk and any node-specific udev rules |
+| `tailscale.yaml` | Auth key via `ExtensionServiceConfig` (encrypted) |
+| `registry-auth.yaml` | Pull credentials (encrypted) |
 
-| Patch file | Purpose |
-|------------|---------|
-| `base.yaml` | Forces kubelet and etcd to register with Tailscale IP (`100.64.0.0/10`) on all nodes |
-| `cloud-nodes.yaml` | Sets GCP installer image (with gcp-guest-agent extension) |
-| `edge-nodes.yaml` | Sets metal installer image |
-| `tailscale.yaml` | Injects Tailscale auth key via `ExtensionServiceConfig` (**encrypted**) |
-| `edge-worker-1-node.yaml` | Sets install disk (`/dev/vda`) for the edge VM |
-
-Before generating configs, decrypt the encrypted patches:
-
-```bash
-# Decrypt secrets and tailscale patch (handle with care — contain sensitive keys)
-sops -d talos/secrets.yaml > talos/secrets.dec.yaml
-sops -d talos/patches/tailscale.yaml > talos/patches/tailscale.dec.yaml
-```
-
-Generate all configs:
-
-```bash
-cd 02-setup/talos
-
-# Edit Makefile if needed:
-#   CLUSTER_ENDPOINT — must be master's Tailscale IP (set after first boot)
-#   SECRETS_FILE    — point to decrypted secrets file
-
+```sh
+cd talos
+sops -d -i secrets.yaml patches/tailscale.yaml patches/registry-auth.yaml
 make gen-config
+sops -e -i secrets.yaml patches/tailscale.yaml patches/registry-auth.yaml
 ```
 
-Configs are written to `02-setup/_out/talos/configs/`:
-- `cloud-master-1.yaml` — controlplane config
-- `cloud-worker-1.yaml` — cloud worker config
-- `edge-worker-1.yaml` — edge node config
-- `talosconfig` — talosctl client config
+Configs are written to `_out/talos/configs/`, one per node, plus `talosconfig`. Individual
+`gen-config-<node>` targets exist as well.
 
-> **Note on cluster endpoint**: The endpoint `https://100.118.101.20:6443` is the master's Tailscale IP. Talos automatically adds Tailscale IPs to the API server's TLS certificate SANs when the Tailscale extension is active, so this is safe to use from the first apply.
+Set `CLUSTER_ENDPOINT` in `talos/Makefile` to the control plane's Tailscale address before
+generating. It is embedded in every config and should not change afterwards.
 
----
+## Phase 4 - Bootstrap the cloud cluster
 
-### Phase 4: Bootstrap the Cloud Cluster
+Apply over the external IPs, since Tailscale is not yet running on a fresh node:
 
-Use the GCP external IPs for initial config apply (Tailscale is not yet up on fresh nodes):
-
-```bash
-cd 02-setup/_out/talos/configs
-
+```sh
+cd _out/talos/configs
 export TALOSCONFIG=./talosconfig
-MASTER_EXT_IP=<master-external-ip>
-WORKER_EXT_IP=<worker-external-ip>
-
-# Apply configs
-talosctl apply-config --insecure --nodes $MASTER_EXT_IP --file cloud-master-1.yaml
-talosctl apply-config --insecure --nodes $WORKER_EXT_IP --file cloud-worker-1.yaml
+talosctl apply-config --insecure --nodes <master-external-ip> --file cloud-master-1.yaml
+talosctl apply-config --insecure --nodes <worker-external-ip> --file cloud-worker-1.yaml
 ```
 
-After the nodes reboot and Tailscale connects (~60–90 seconds), bootstrap etcd on the master:
+The nodes reboot and join the tailnet in about 60 to 90 seconds. Everything after this uses
+Tailscale addresses:
 
-```bash
-# Use Tailscale IP once the node is reachable via Tailscale
-talosctl bootstrap --nodes 100.118.101.20
-
-# Wait for cluster to be healthy (run against master node only)
-talosctl health --nodes 100.118.101.20
-
-# Retrieve kubeconfig
-talosctl kubeconfig ./kubeconfig --nodes 100.118.101.20
-
-# Verify nodes
+```sh
+talosctl bootstrap --nodes <master-tailscale-ip>
+talosctl health    --nodes <master-tailscale-ip>
+talosctl kubeconfig ./kubeconfig --nodes <master-tailscale-ip>
 kubectl --kubeconfig=./kubeconfig get nodes -o wide
 ```
 
-Both cloud nodes should appear as `Ready` with Tailscale IPs in the `INTERNAL-IP` column.
+`INTERNAL-IP` should be a `100.x.x.x` address on every node. If it shows a VPC address,
+`base.yaml` did not take effect; fix that before continuing, because the edge node cannot
+reach a VPC address.
 
----
+The generated kubeconfig points at the control plane's public IP, which changes whenever
+the instance is recreated. A kubeconfig that stops connecting usually needs its `server:`
+field refreshed rather than a rebuilt cluster.
 
-### Phase 5: Edge Node Infrastructure (Local KVM)
+## Phase 5 - Join an edge node
 
-The edge site uses an OVS bridge for the edge VM network with a dnsmasq DHCP server.
+Boot the machine from the metal ISO. In maintenance mode it takes a DHCP address on the
+local network; apply the config over that address once:
 
-#### 5.1 Prepare LVM storage
-
-If the edge VM disk does not exist yet, create it from a free partition:
-
-```bash
-# Create LVM physical volume, volume group, and logical volume
-sudo pvcreate /dev/sda7
-sudo vgcreate vg-talos-setup02 /dev/sda7
-sudo lvcreate -l 100%FREE -n talos-setup02-edge1 vg-talos-setup02
-```
-
-#### 5.2 Start the edge network service
-
-```bash
-# Install and start the systemd service (creates OVS bridge + dnsmasq)
-sudo cp 02-setup/infra/02-setup-edge-net.service /etc/systemd/system/
-sudo systemctl daemon-reload
-sudo systemctl enable --now 02-setup-edge-net.service
-
-# Verify
-sudo systemctl status 02-setup-edge-net.service
-sudo ovs-vsctl show
-```
-
-The service creates:
-- OVS bridge `setup02-edge` at `10.0.20.1/24`
-- dnsmasq container at `10.0.20.2/24` serving DHCP on `10.0.20.10–200`
-- NAT (masquerade) for internet access from the edge network
-
-#### 5.3 Define the libvirt network and VM
-
-```bash
-# Define OVS-backed libvirt network
-virsh net-define 02-setup/infra/libvirt/qemu/networks/02-setup-edge-net.xml
-virsh net-start setup02-edge
-virsh net-autostart setup02-edge
-
-# Define the edge VM
-virsh define 02-setup/infra/libvirt/qemu/talos-setup02-edge-1.xml
-```
-
-The VM (`talos-setup02-edge-1`) is configured with:
-- 4 vCPU, 8 GB RAM
-- Boot order: ISO first (`/var/lib/libvirt/images/talos-edge-tailscale.iso`), then disk
-- LVM disk: `/dev/vg-talos-setup02/talos-setup02-edge1`
-- MAC address: `52:54:00:00:02:01` → static DHCP lease `10.0.20.10` (hostname `talos-edge-1`)
-- Network: `setup02-edge` (OVS bridge)
-
----
-
-### Phase 6: Install Talos on the Edge Node
-
-```bash
-# Start the VM — it will PXE/ISO boot into the Talos installer
-virsh start talos-setup02-edge-1
-
-# Apply the edge node config (while Talos is running from ISO, before install)
+```sh
 talosctl apply-config --insecure \
-  --nodes 10.0.20.10 \
-  --file 02-setup/_out/talos/configs/edge-worker-1.yaml \
-  --talosconfig 02-setup/_out/talos/configs/talosconfig
+  --nodes <edge-lan-ip> \
+  --file _out/talos/configs/<edge-node>.yaml
 ```
 
-Talos will install to `/dev/vda`, reboot, and automatically:
-1. Connect to the Tailscale network using the auth key from the machine config
-2. Join the cluster via the master's Tailscale IP (`100.118.101.20:6443`)
+Talos installs to disk, reboots, starts Tailscale using the auth key from the config, and
+joins the cluster at the control plane's Tailscale address. The local address is not needed
+again.
 
-After a few minutes, verify the edge node has joined:
-
-```bash
-kubectl --kubeconfig=02-setup/_out/talos/configs/kubeconfig get nodes -o wide
+```sh
+kubectl get nodes -o wide
 ```
 
-The edge node (`talos-edge-1`) should appear as `Ready` with its Tailscale IP in `INTERNAL-IP`.
+Do not set `machine.network.hostname` in a patch alongside `v1alpha1` config; it fails
+validation. Let DHCP or the installer set the hostname.
 
-> **Note**: The edge node hostname is set by the dnsmasq DHCP static lease (`talos-edge-1`). Setting `machine.network.hostname` in the Talos patch is not supported alongside `v1alpha1` config and will cause a validation error.
+A KVM-based edge path using OVS, dnsmasq and libvirt is available under `infra/` for
+testing the join flow without hardware. It is not needed for a bare-metal edge node.
 
----
+## Phase 6 - CNI and multi-NIC
 
-### Phase 7: Configure Flannel to Use the Tailscale Interface
+The cluster has no pod networking until Kube-OVN is installed, because Talos is configured
+with `cni.name: none`. Each component is a Helm overlay; `cd` into its directory first, as
+the paths are relative.
 
-By default, Flannel picks the first non-loopback interface for its VXLAN VTEP, which is the local network IP (e.g., `10.1.0.x` for cloud, `10.0.20.x` for edge). This breaks cross-network pod-to-pod traffic because those IPs are not routable between sites.
-
-Patch the Flannel DaemonSet to use `tailscale0`:
-
-```bash
-kubectl --kubeconfig=02-setup/_out/talos/configs/kubeconfig \
-  patch daemonset kube-flannel -n kube-system \
-  --type=json \
-  -p='[{"op": "replace", "path": "/spec/template/spec/containers/0/args", "value": ["--ip-masq", "--kube-subnet-mgr", "--iface=tailscale0"]}]'
-
-# Wait for rollout
-kubectl --kubeconfig=02-setup/_out/talos/configs/kubeconfig \
-  rollout status daemonset/kube-flannel -n kube-system
+```sh
+cd k8s/kube-ovn && make helm-upgrade
+cd ../multus    && make helm-upgrade
 ```
 
-> **Note**: This patch is applied live and will be lost if nodes are fully reset and Talos re-deploys Flannel. Plan to migrate to kube-OVN or another CNI that supports interface selection natively.
+Then the SR-IOV stack, if the edge node has suitable NICs:
 
-Verify VTEP IPs are Tailscale addresses after the rollout:
-
-```bash
-kubectl --kubeconfig=02-setup/_out/talos/configs/kubeconfig get nodes \
-  -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{.metadata.annotations.flannel\.alpha\.coreos\.com/public-ip}{"\n"}{end}'
+```sh
+cd ../sriov-network-operator && make helm-upgrade
 ```
 
-All nodes should show `100.x.x.x` Tailscale IPs.
+Talos needs two things here that upstream does not provide. The operator build must allow
+its `/etc` paths to be configured, since Talos has no writable `/etc` - point `hostEtcPath`
+and `hostUdevPath` at `/var/etc`. And the node's machine config must carry static udev
+rules to give switchdev VF representors predictable names, because Talos reads udev rules
+only from `/usr/lib/udev/rules.d` and ignores the ones the operator writes at runtime.
 
----
+## Phase 7 - Cloud controller and storage
 
-### Phase 8: Cloud Provider Integration & Storage
+`externalCloudProvider` is enabled in the control-plane patch, which taints every node with
+`node.cloudprovider.kubernetes.io/uninitialized` at boot. Deploy the CCM promptly, or
+workloads stay stuck behind that taint.
 
-This phase deploys the Talos Cloud Controller Manager (CCM) to initialize all cluster nodes and optionally enables GCP Persistent Disk CSI for cloud storage.
-
-#### Why Talos CCM only (no GCP CCM)
-
-Talos CCM queries the Talos API on each node and works with any platform (gcp, metal, nocloud). It:
-- Removes the `node.cloudprovider.kubernetes.io/uninitialized` taint from ALL nodes (GCP + edge)
-- Sets `spec.providerID` and node addresses on all nodes
-- Sets topology labels derived from the Talos platform metadata
-
-GCP CCM is not needed: it adds LoadBalancer service provisioning and GCP route management, neither of which is required when using the Tailscale overlay.
-
-#### 8.1 Apply Talos configs with external cloud provider enabled
-
-The `controlplane.yaml` patch now includes:
-- `cluster.externalCloudProvider.enabled: true` — adds `--cloud-provider=external` to kubelet on all nodes and applies the `uninitialized` taint at boot
-- `machine.features.kubernetesTalosAPIAccess` — allows Talos CCM pods in `kube-system` to query each node's Talos API over port 50000
-
-After regenerating configs:
-
-```bash
-cd 02-setup/talos
-make gen-config
-
-# Apply to all nodes (they will reboot with --cloud-provider=external)
-talosctl apply-config --nodes 100.118.101.20 --file _out/talos/configs/cloud-master-1.yaml
-talosctl apply-config --nodes <cloud-worker-tailscale-ip> --file _out/talos/configs/cloud-worker-1.yaml
-talosctl apply-config --nodes 100.71.48.120 --file _out/talos/configs/edge-worker-1.yaml
+```sh
+cd k8s/talos-ccm && make helm-upgrade
 ```
 
-> **Important**: Deploy Talos CCM immediately after nodes reboot, or workloads will remain stuck behind the `uninitialized` taint.
+Talos CCM queries each node's Talos API, which is why
+`machine.features.kubernetesTalosAPIAccess` is set. It works for both cloud and metal
+nodes: it clears the taint, sets `providerID`, and applies topology labels.
 
-#### 8.2 Deploy Talos CCM
+If the CCM is added to a cluster whose nodes already registered without
+`--cloud-provider=external`, `providerID` is not set retroactively. Add the taint manually
+once and the CCM clears it within seconds.
 
-```bash
-helm upgrade -i -n kube-system talos-cloud-controller-manager \
-  oci://ghcr.io/siderolabs/charts/talos-cloud-controller-manager
-```
+Storage is split by location: a cloud-only CSI driver (`kubectl apply -k k8s/pd-csi/`,
+pinned by `?ref=` and patched for Talos) and a replicated local-storage provisioner
+available on all nodes.
 
-No custom values are needed — the chart defaults already pin the CCM to the control plane node and include the correct tolerations.
+## Phase 8 - Verify
 
-Talos CCM runs on the control plane node and contacts each node's Talos API via the Tailscale IPs already used for cluster communication.
-
-> **If deploying CCM onto an already-running cluster** (nodes registered without `--cloud-provider=external`), `providerID` will not be set automatically. Trigger initialization by adding the taint — CCM removes it within seconds:
-> ```bash
-> for node in setup02-cluster-master-1 setup02-cluster-worker-1 setup02-edge-worker-1; do
->   kubectl taint node $node node.cloudprovider.kubernetes.io/uninitialized=true:NoSchedule
-> done
-> ```
-
-#### 8.3 Deploy GCP PD CSI Driver
-
-See `02-setup/k8s/pd-csi/README.md` for the full deployment steps.
-
-In summary:
-
-```bash
-kubectl apply -k 02-setup/k8s/pd-csi/
-```
-
-This deploys the upstream stable overlay, restricts the node DaemonSet to cloud nodes via a
-kustomize strategic merge patch, and creates the StorageClass — all in one step.
-
-To change the upstream version, edit the `?ref=` tag in `02-setup/k8s/pd-csi/kustomization.yaml`.
-
-#### 8.4 Verification
-
-```bash
-# Check node labels
-kubectl get nodes -o custom-columns='NAME:.metadata.name,REGION:.metadata.labels.topology\.kubernetes\.io/region,ZONE:.metadata.labels.topology\.kubernetes\.io/zone,LOCATION:.metadata.labels.node\.kubernetes\.io/location'
-
-# Check no uninitialized taints remain
-kubectl describe nodes | grep -A3 Taints
-
-# Check providerID is set on all nodes
+```sh
+kubectl get nodes -o wide
 kubectl get nodes -o custom-columns='NAME:.metadata.name,PROVIDER:.spec.providerID'
+kubectl get nodes -o custom-columns='NAME:.metadata.name,LOCATION:.metadata.labels.node\.kubernetes\.io/location'
+```
 
-# Test cloud-only PVC provisioning
-kubectl apply -f - <<EOF
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: test-pvc
-spec:
-  accessModes: ["ReadWriteOnce"]
-  resources:
-    requests:
-      storage: 1Gi
-  storageClassName: pd-standard
-EOF
+Every node should be `Ready` with a Tailscale `INTERNAL-IP`, a `providerID`, a location
+label, and no `uninitialized` taint.
 
-# Test nodeSelector scheduling
+Cross-site pod networking is the test that matters, since it exercises the Tailscale hop:
+
+```sh
+kubectl apply -f tests/busybox-connectivity.yaml
+```
+
+From a pod on a cloud node, check pod-to-pod against a pod on the edge node, then
+pod-to-service, DNS resolution, and external egress.
+
+Scheduling and storage can be checked with a node selector:
+
+```sh
 kubectl run test-cloud --image=busybox --restart=Never \
   --overrides='{"spec":{"nodeSelector":{"node.kubernetes.io/location":"cloud"}}}' -- sleep 3600
-kubectl run test-edge --image=busybox --restart=Never \
-  --overrides='{"spec":{"nodeSelector":{"node.kubernetes.io/location":"edge"}}}' -- sleep 3600
 ```
 
----
+## Node taints and Talos-managed manifests
 
-### Operational Note: CoreDNS and the `location` node taints
+Every node carries a `node.kubernetes.io/location` NoSchedule taint, so workloads must
+tolerate their target location. The component charts under `k8s/` already do.
 
-Every node in this cluster carries a `node.kubernetes.io/location` **`NoSchedule`** taint —
-`cloud` on the control-plane and cloud workers (`talos/patches/cloud-nodes.yaml`,
-`controlplane.yaml`) and `edge` on edge nodes (`talos/patches/edge-nodes.yaml`). Workloads
-must explicitly tolerate their target location; the app charts (kube-vim, sriov, osm) already
-do.
+Talos's own bootstrap manifests do not tolerate custom taints. CoreDNS is the one that
+causes trouble: its Deployment ships only the standard control-plane tolerations, so once
+every node is tainted its pods cannot be scheduled. An already-running pod keeps running,
+since a NoSchedule taint does not evict, which hides the problem until a rollout happens -
+usually during `talosctl upgrade-k8s`, which then hangs.
 
-**The gotcha:** Talos-managed system components do **not** tolerate these custom taints.
-CoreDNS is the notable one — its Deployment is a Talos bootstrap manifest and ships only the
-standard control-plane/`not-ready` tolerations, so its pods cannot schedule on *any* node once
-all nodes are tainted. A running coredns pod survives (a `NoSchedule` taint does not evict
-already-running pods), which masks the problem — until a rollout happens.
+Patching the Deployment works but does not survive, because Talos rewrites the manifest on
+every `upgrade-k8s` and `cluster.coreDNS` exposes only `disabled` and `image`. The durable
+options are to disable the bundled CoreDNS and manage your own, inject the toleration with
+an admission mutation, or re-apply it with a reconciler after upgrades. The same applies to
+any customisation of a Talos-managed bootstrap manifest.
 
-**Symptom:** after `talosctl upgrade-k8s`, the coredns rollout hangs. New pods sit `Pending`
-with `FailedScheduling: untolerated taint {node.kubernetes.io/location}`, the Deployment is
-stuck at `1/2`, and DNS runs on a single grandfathered pod (no HA).
+## Layout
 
-**Root cause:** `upgrade-k8s` re-applies Talos's **default** coredns bootstrap manifest, which
-overwrites any manually added toleration. Talos exposes no machine-config field for coredns
-tolerations — `cluster.coreDNS` only supports `disabled` and `image` — so a `kubectl` patch is
-**not durable** and is wiped on every `upgrade-k8s`.
-
-**Stopgap** (restores HA immediately, but reverts on the next `upgrade-k8s`):
-
-```bash
-kubectl patch deploy coredns -n kube-system --type=json \
-  -p='[{"op":"add","path":"/spec/template/spec/tolerations/-","value":{"key":"node.kubernetes.io/location","operator":"Exists","effect":"NoSchedule"}}]'
 ```
-
-**Durable options:**
-
-| Option | How | Trade-off |
-|--------|-----|-----------|
-| Soften the taint (recommended for the lab) | Drop the `location` `NoSchedule` taint on cloud/control-plane nodes (or make it `PreferNoSchedule`) in `cloud-nodes.yaml`/`controlplane.yaml` | Stock coredns schedules freely; weakens cloud-node isolation |
-| Label + `nodeSelector` isolation | Replace location *taints* with location *labels* and have workloads target via `nodeSelector`/affinity | Cleanest, prod-portable; larger change to the scheduling model |
-| Self-manage coredns | `cluster.coreDNS.disabled: true` + ship your own coredns (with the toleration) via `cluster.inlineManifests` | Survives upgrades; you own coredns and lose Talos's automatic version bumps |
-
-> The same "customization lost on upgrade" caveat applies to any Talos-managed bootstrap
-> manifest (see the Flannel note in Phase 7). Prefer a machine-config or taint-model fix over a
-> live `kubectl` patch for anything that must survive `upgrade-k8s`.
-
----
-
-### Verification
-
-Run the connectivity test suite from `02-setup/tests/`:
-
-```bash
-export KC=02-setup/_out/talos/configs/kubeconfig
-
-# Deploy busybox DaemonSet on all nodes (including master — tolerations: Exists)
-kubectl --kubeconfig=$KC apply -f 02-setup/tests/busybox-connectivity.yaml
-
-# Wait for pods
-kubectl --kubeconfig=$KC get pods -o wide
-
-# Create a test file in each pod
-for pod in $(kubectl --kubeconfig=$KC get pods -l app=busybox-test -o name); do
-  node=$(kubectl --kubeconfig=$KC get $pod -o jsonpath='{.spec.nodeName}')
-  kubectl --kubeconfig=$KC exec ${pod#pod/} -- sh -c "echo 'hello from $node' > /tmp/test.txt"
-done
-
-SVC_IP=$(kubectl --kubeconfig=$KC get svc busybox-test -o jsonpath='{.spec.clusterIP}')
-
-# Test pod-to-pod (ping)
-kubectl --kubeconfig=$KC exec <edge-pod> -- ping -c3 <cloud-worker-pod-ip>
-kubectl --kubeconfig=$KC exec <edge-pod> -- ping -c3 <master-pod-ip>
-
-# Test pod-to-service (ClusterIP)
-kubectl --kubeconfig=$KC exec <edge-pod> -- wget -qO- http://$SVC_IP:8080/test.txt
-
-# Test pod-to-service (DNS)
-kubectl --kubeconfig=$KC exec <edge-pod> -- wget -qO- http://busybox-test.default.svc.cluster.local:8080/test.txt
-
-# Test external egress from pods
-kubectl --kubeconfig=$KC exec <edge-pod> -- wget -qO- http://example.com
-kubectl --kubeconfig=$KC exec <edge-pod> -- nslookup google.com
+terraform/    cloud VPC and instances (modules: infrastructure, talos-cluster)
+talos/        Makefile, patches/, secrets.yaml
+k8s/<comp>/   one overlay per component; most use `make helm-upgrade`, some use kustomize
+infra/        optional KVM edge path: OVS, dnsmasq, libvirt
+tests/        connectivity, storage and SSH test manifests
+docs/         documentation
+_out/talos/   generated configs, kubeconfig, talosconfig (gitignored)
 ```
-
-Expected results:
-- Pod-to-pod ping: 0% packet loss, RTT reflects Tailscale latency (~5–20 ms for cloud-to-cloud, ~20–50 ms for cloud-to-edge)
-- Pod-to-service: returns content from one of the 3 backend pods (kube-proxy load-balances)
-- DNS: resolves both in-cluster (`*.svc.cluster.local`) and external names
-- Egress: edge and cloud pods can reach the internet through their respective NAT gateways
