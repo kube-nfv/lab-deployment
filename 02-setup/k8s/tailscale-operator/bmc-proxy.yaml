@@ -1,0 +1,69 @@
+apiVersion: tailscale.com/v1alpha1
+kind: ProxyClass
+metadata:
+  name: edge-bmc-proxy-class
+spec:
+  statefulSet:
+    pod:
+      nodeSelector:
+        node.kubernetes.io/location: edge
+      tolerations:
+        - key: node.kubernetes.io/location
+          operator: Equal
+          value: edge
+          effect: NoSchedule
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: bmc-access
+  labels:
+    pod-security.kubernetes.io/enforce: restricted
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: setup02-x11spl-f-worker-1-bmc
+  namespace: bmc-access
+  labels:
+    tailscale.com/proxy-class: edge-bmc-proxy-class
+  annotations:
+    tailscale.com/hostname: setup02-x11spl-f-worker-1-bmc
+spec:
+  type: LoadBalancer
+  loadBalancerClass: tailscale
+  ports:
+    - name: https
+      protocol: TCP
+      port: 443
+      targetPort: 443
+    - name: vnc
+      protocol: TCP
+      port: 5900
+      targetPort: 5900
+    - name: ipmi
+      protocol: UDP
+      port: 623
+      targetPort: 623
+---
+apiVersion: discovery.k8s.io/v1
+kind: EndpointSlice
+metadata:
+  name: setup02-x11spl-f-worker-1-bmc
+  namespace: bmc-access
+  labels:
+    kubernetes.io/service-name: setup02-x11spl-f-worker-1-bmc
+addressType: IPv4
+ports:
+  - name: https
+    protocol: TCP
+    port: 443
+  - name: vnc
+    protocol: TCP
+    port: 5900
+  - name: ipmi
+    protocol: UDP
+    port: 623
+endpoints:
+  - addresses:
+      - 192.168.88.254
