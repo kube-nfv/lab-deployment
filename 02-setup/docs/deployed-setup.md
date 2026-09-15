@@ -66,8 +66,16 @@ through to KubeVirt VMs and `netdevice` VFs for container workloads. They are ad
 `openshift.io/mlx_vf_pf{0,1}_{vfio,netdev}`. Traffic between a VF and the wire is switched
 in NIC hardware through TC-flower, not by the host CPU.
 
-Both ports are currently wired directly to a traffic generator, with no switch in the
-dataplane path.
+Both ports reach a traffic generator through a MikroTik CRS504-4XQ, using QSFP28 to 4x
+SFP28 breakout cables so each box takes 2x25G from one cage. The switch carries the
+dataplane only - its management port is deliberately kept out of that bridge, because the
+RouterOS factory config bridges the two together and merges the dataplane into the lab
+management subnet.
+
+Each PF is paired with one traffic-generator port over an untagged access VLAN, so the two
+paths are separate L2 segments and nothing in the dataplane carries an IP address. Which
+port is paired with which is switch configuration rather than cabling, and the layouts are
+kept as swappable RouterOS scripts under `infra/crs504/`.
 
 ## Storage
 

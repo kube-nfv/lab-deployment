@@ -1,0 +1,132 @@
+# Tailnet access to the lab network devices.
+#
+# Neither device can run Tailscale itself - RouterOS has no Tailscale client and
+# the container package is not built for their architecture - so each is published
+# through the operator's native L3 ingress: a selectorless LoadBalancer Service
+# plus a hand-written EndpointSlice pointing at the device's lab address.
+#
+# The proxy pods are pinned to the edge node, which is the only cluster member on
+# the lab management subnet. No subnet route is advertised, so only these devices
+# and ports are reachable from the tailnet.
+#
+# Note the proxies run on hardware that sits behind the switch they publish. If
+# the edge node is down, so is this access path.
+apiVersion: tailscale.com/v1alpha1
+kind: ProxyClass
+metadata:
+  name: edge-netdev-proxy-class
+spec:
+  statefulSet:
+    pod:
+      nodeSelector:
+        node.kubernetes.io/location: edge
+      tolerations:
+        - key: node.kubernetes.io/location
+          operator: Equal
+          value: edge
+          effect: NoSchedule
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: netdev-access
+  labels:
+    pod-security.kubernetes.io/enforce: restricted
+---
+# CRS504-4XQ - 25G dataplane switch
+apiVersion: v1
+kind: Service
+metadata:
+  name: crs504-4xq-in-1
+  namespace: netdev-access
+  labels:
+    tailscale.com/proxy-class: edge-netdev-proxy-class
+  annotations:
+    tailscale.com/hostname: crs504-4xq-in-1
+spec:
+  type: LoadBalancer
+  loadBalancerClass: tailscale
+  ports:
+    - name: ssh
+      protocol: TCP
+      port: 22
+      targetPort: 22
+    - name: http
+      protocol: TCP
+      port: 80
+      targetPort: 80
+    - name: winbox
+      protocol: TCP
+      port: 8291
+      targetPort: 8291
+---
+apiVersion: discovery.k8s.io/v1
+kind: EndpointSlice
+metadata:
+  name: crs504-4xq-in-1
+  namespace: netdev-access
+  labels:
+    kubernetes.io/service-name: crs504-4xq-in-1
+addressType: IPv4
+ports:
+  - name: ssh
+    protocol: TCP
+    port: 22
+  - name: http
+    protocol: TCP
+    port: 80
+  - name: winbox
+    protocol: TCP
+    port: 8291
+endpoints:
+  - addresses:
+      - 192.168.88.2
+---
+# hAP lite - lab router, gateway and Wi-Fi uplink
+apiVersion: v1
+kind: Service
+metadata:
+  name: hap-lite-1
+  namespace: netdev-access
+  labels:
+    tailscale.com/proxy-class: edge-netdev-proxy-class
+  annotations:
+    tailscale.com/hostname: hap-lite-1
+spec:
+  type: LoadBalancer
+  loadBalancerClass: tailscale
+  ports:
+    - name: ssh
+      protocol: TCP
+      port: 22
+      targetPort: 22
+    - name: http
+      protocol: TCP
+      port: 80
+      targetPort: 80
+    - name: winbox
+      protocol: TCP
+      port: 8291
+      targetPort: 8291
+---
+apiVersion: discovery.k8s.io/v1
+kind: EndpointSlice
+metadata:
+  name: hap-lite-1
+  namespace: netdev-access
+  labels:
+    kubernetes.io/service-name: hap-lite-1
+addressType: IPv4
+ports:
+  - name: ssh
+    protocol: TCP
+    port: 22
+  - name: http
+    protocol: TCP
+    port: 80
+  - name: winbox
+    protocol: TCP
+    port: 8291
+endpoints:
+  - addresses:
+      - 192.168.88.1
