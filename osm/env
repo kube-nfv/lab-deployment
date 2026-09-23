@@ -1,3 +1,3 @@
 OSM_HOSTNAME=setup02-nbi.tailac05db.ts.net
-OSM_USER=admin
-OSM_PASSWORD=admin
+OSM_USER=op://Personal/login.kube-nfv-lab-osm/username
+OSM_PASSWORD=op://Personal/login.kube-nfv-lab-osm/password
