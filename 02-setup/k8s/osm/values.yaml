@@ -124,8 +124,8 @@ osm:
   ro:
     image:
       repository: ghcr.io/kube-nfv/osm-ro
-      tag: latest
-      pullPolicy: Always
+      tag: master-6e33dbe
+      pullPolicy: IfNotPresent
     # Attach RO to the kube-vim-managed shared mgmt subnet so it can SSH into
     # VMs at their mgmt IPs (inject_ssh_key). The two annotations work together:
     # the first tells Multus which NAD to use; the second tells kube-OVN which
@@ -135,12 +135,21 @@ osm:
       k8s.v1.cni.cncf.io/networks: kube-vim/osm-mgmt-subnet-0-netattach
       osm-mgmt-subnet-0-netattach.kube-vim.ovn.kubernetes.io/logical_switch: osm-mgmt-subnet-0
 
+  # Upstream testing-daily builds pinned by digest (2026-09-14).
+  lcm:
+    image:
+      tag: testing-daily@sha256:73ebed6b78c68ade6a38bc5c55356204de5e6a6f8b29016143ed4a673b874f79
+
   mon:
+    image:
+      tag: testing-daily@sha256:270cf1ced84b68828a00f21c6bca22fbc4c5ffd8afa0f0327ea61e46fe68fa74
     grafanaSecretName: "grafana-monitoring"
     config:
       OSMMON_GRAFANA_URL: "http://grafana.monitoring.svc.cluster.local:80"
 
   nbi:
+    image:
+      tag: testing-daily@sha256:8be51834d3c18eeec419c7968b072bea77b58e044176ed0cef3d14a341fbd62e
     ingress:
       host: "setup02-nbi.tailac05db.ts.net"
 
@@ -191,6 +200,9 @@ osm:
           operator: Equal
           value: cloud
           effect: NoSchedule
+      # 15-day default fills the 2Gi logs PVC.
+      logGroomerSidecar:
+        retentionDays: 3
     webserver:
       nodeSelector:
         node.kubernetes.io/location: cloud
