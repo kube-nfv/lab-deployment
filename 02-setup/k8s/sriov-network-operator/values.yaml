@@ -11,6 +11,17 @@ operator:
 
 images:
   operator: ghcr.io/kube-nfv/sriov-network-operator:56ff3adfe5e5a1294bb32da6fc31a3a2663e4049
+  # Daemon and webhook must come from the fork at the same commit as the operator:
+  # the Talos fixes live in the daemon binary, and the CRD must match its status schema.
+  sriovConfigDaemon: ghcr.io/kube-nfv/sriov-network-operator-config-daemon:56ff3adfe5e5a1294bb32da6fc31a3a2663e4049
+  webhook: ghcr.io/kube-nfv/sriov-network-operator-webhook:56ff3adfe5e5a1294bb32da6fc31a3a2663e4049
+  # Chart defaults for the rest are untagged (:latest); pin every one.
+  sriovCni: ghcr.io/k8snetworkplumbingwg/sriov-cni@sha256:ea36f16007622fadf3d1773b896a851c9ace28eadd6e530dc0fd3723f5599cad
+  ibSriovCni: ghcr.io/k8snetworkplumbingwg/ib-sriov-cni@sha256:b1b93865efa29809bec0ecdb48910154a0085e3545f12e88d95d07734feb138a
+  rdmaCni: ghcr.io/k8snetworkplumbingwg/rdma-cni@sha256:9d4f389cfdaac40309d21643ff6c6880e8eef3873ce4edc57f8f2203d70f4ddf
+  sriovDevicePlugin: ghcr.io/k8snetworkplumbingwg/sriov-network-device-plugin:v3.11.0
+  resourcesInjector: ghcr.io/k8snetworkplumbingwg/network-resources-injector:v1.10.0
+  metricsExporter: ghcr.io/k8snetworkplumbingwg/sriov-network-metrics-exporter@sha256:68bc2bc6ca62d49333046522316cb492fd9777bbf2a4be6e89575161329df0ef
   # Pin ovs-cni-plugin to a release tag. The chart default is untagged, which
   # resolves to :latest — a rolling main-branch build. A post-2025-11-01 :latest
   # was built with vishvananda/netlink v1.3.2-0.20251101063711, whose LinkByName()
