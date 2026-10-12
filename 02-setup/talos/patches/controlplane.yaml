@@ -22,6 +22,11 @@ kind: KubeProxyConfig
 config:
   metricsBindAddress: 0.0.0.0:10249
 ---
+# CoreDNS is deployed from k8s/coredns so it can tolerate the location taints
+apiVersion: v1alpha1
+kind: KubeCoreDNSConfig
+enabled: false
+---
 apiVersion: v1alpha1
 kind: KubeTalosAPIAccessConfig
 allowedRoles:

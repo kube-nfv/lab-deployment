@@ -1,0 +1,10 @@
+coredns:
+  # Same object names and labels as the kubeadm/Talos CoreDNS
+  fullnameOverride: coredns
+  k8sAppLabelOverride: kube-dns
+  replicaCount: 2
+  priorityClassName: system-cluster-critical
+  service:
+    name: kube-dns
+  serviceAccount:
+    create: true
