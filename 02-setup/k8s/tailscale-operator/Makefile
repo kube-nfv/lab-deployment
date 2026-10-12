@@ -1,4 +1,7 @@
-helm-upgrade:
+apply-ns:
+	kubectl apply -f namespace.yaml
+
+helm-upgrade: apply-ns
 	helm upgrade -i --create-namespace -n tailscale-operator tailscale-operator ../../../k8s/helm/tailscale-operator/ -f ../../../k8s/helm/tailscale-operator/values.yaml -f values.yaml -f secrets.yaml
 	$(MAKE) apply-bmc-proxy
 	$(MAKE) apply-netdev-proxy

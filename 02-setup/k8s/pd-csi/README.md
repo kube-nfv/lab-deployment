@@ -19,9 +19,12 @@ This single command:
 | Patch | File | Why |
 |-------|------|-----|
 | `csi-gce-pd-node` DaemonSet `nodeSelector: node.kubernetes.io/location: cloud` | `node-daemonset-patch.yaml` | Prevents the node DaemonSet from scheduling on the edge node |
-| `csi-gce-pd-node` volume `udev-rules-etc`: `hostPath /etc/udev` → `emptyDir` | inline JSON patch in `kustomization.yaml` | `/etc/udev` does not exist on Talos Linux (immutable OS). The driver never reads or writes this path at runtime — `udevadm` contacts host udevd via `/run/udev` (socket), which does exist on Talos |
+| `csi-gce-pd-node` volume `udev-rules-etc`: `hostPath /etc/udev` → `emptyDir` | `node-daemonset-patch.yaml` | `/etc/udev` does not exist on Talos Linux (immutable OS). The driver never reads or writes this path at runtime - `udevadm` contacts host udevd via `/run/udev` (socket), which does exist on Talos |
 | `csi-gce-pd-controller` `nodeSelector: node.kubernetes.io/location: cloud` | `controller-deployment-patch.yaml` | Controller must run on a GCE node to reach the instance metadata service for auth |
-| `csi-gce-pd-controller` removes `GOOGLE_APPLICATION_CREDENTIALS` env, `cloud-sa-volume` mount and volume | inline JSON patch in `kustomization.yaml` | SA key creation is blocked by org policy (`constraints/iam.disableServiceAccountKeyCreation`). The controller authenticates via Application Default Credentials (ADC), falling back to the GCE instance metadata service using the SA attached to the GCE VM |
+| `csi-gce-pd-controller` removes `GOOGLE_APPLICATION_CREDENTIALS` env and the `/etc/cloud-sa` mount from `gce-pd-driver` and `taint-controller`, and the `cloud-sa-volume` volume | `controller-deployment-patch.yaml` | SA key creation is blocked by org policy (`constraints/iam.disableServiceAccountKeyCreation`). The controller authenticates via Application Default Credentials (ADC), falling back to the GCE instance metadata service using the SA attached to the GCE VM |
+
+All patches are strategic merges keyed by container, volume, env or mount name, so they
+keep working when upstream reorders those lists.
 
 ## IAM requirements
 
@@ -41,24 +44,17 @@ Edit the `?ref=` tag in `kustomization.yaml`:
 
 ```yaml
 resources:
-  - https://github.com/kubernetes-sigs/gcp-compute-persistent-disk-csi-driver/deploy/kubernetes/overlays/stable-master?ref=v1.23.3
+  - https://github.com/kubernetes-sigs/gcp-compute-persistent-disk-csi-driver/deploy/kubernetes/overlays/stable-master?ref=v1.27.4
 ```
 
-After updating, re-verify the volume index of `udev-rules-etc` in the rendered manifest before applying:
+After updating, check that no container still references the `cloud-sa` secret (a new
+upstream container would need adding to `controller-deployment-patch.yaml`):
 
 ```bash
-kubectl kustomize 02-setup/k8s/pd-csi/ | python3 -c "
-import sys, yaml
-docs = list(yaml.safe_load_all(sys.stdin))
-for doc in docs:
-    if doc and doc.get('kind') == 'DaemonSet' and doc['metadata']['name'] == 'csi-gce-pd-node':
-        for i, v in enumerate(doc['spec']['template']['spec']['volumes']):
-            print(f'[{i}] {v[\"name\"]}:', v.get('hostPath', v.get('emptyDir', '?')))
-        break
-"
+kubectl kustomize 02-setup/k8s/pd-csi/ | grep -n cloud-sa
 ```
 
-The `udev-rules-etc` volume must show `emptyDir`. If its index changed, update the JSON patch in `kustomization.yaml` accordingly.
+It must print nothing.
 
 ## Notes
 

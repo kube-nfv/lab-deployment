@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   name: csi-gce-pd-node
-  namespace: kube-system
+  namespace: gce-pd-csi-driver
 spec:
   template:
     spec:
@@ -13,3 +13,8 @@ spec:
           operator: Equal
           value: cloud
           effect: NoSchedule
+      # /etc/udev does not exist on Talos; the driver never uses it at runtime
+      volumes:
+        - name: udev-rules-etc
+          hostPath: null
+          emptyDir: {}

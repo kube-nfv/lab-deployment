@@ -57,20 +57,21 @@ extraManifests:
 #        - /dev/vdb
 #    nodeSelector:
 #      kubernetes.io/hostname: setup02-edge-worker-1
-#- apiVersion: piraeus.io/v1
-#  kind: LinstorSatelliteConfiguration
-#  metadata:
-#    name: zfs-storage-x11spl-f-worker-1
-#  spec:
-#    storagePools:
-#    - name: data
-#      zfsPool:
-#        zPool: data
-#      source:
-#        hostDevices:
-#        - /dev/sdb7
-#    nodeSelector:
-#      kubernetes.io/hostname: setup02-x11spl-f-worker-1
+- apiVersion: piraeus.io/v1
+  kind: LinstorSatelliteConfiguration
+  metadata:
+    name: zfs-storage-x11spl-f-worker-1
+  spec:
+    storagePools:
+    - name: data
+      zfsPool:
+        zPool: data
+      source:
+        hostDevices:
+        # RawVolumeConfig linstor-data in the node's Talos patch
+        - /dev/disk/by-partlabel/r-linstor-data
+    nodeSelector:
+      kubernetes.io/hostname: setup02-x11spl-f-worker-1
 - apiVersion: storage.k8s.io/v1
   kind: StorageClass
   metadata:

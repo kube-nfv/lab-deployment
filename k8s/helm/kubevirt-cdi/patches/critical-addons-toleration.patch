@@ -1,0 +1,12 @@
+--- a/templates/cdi-cr.yaml
++++ b/templates/cdi-cr.yaml
+@@ -11,6 +11,9 @@
+   infra:
+     nodeSelector:
+       kubernetes.io/os: linux
++    tolerations:
++    - key: CriticalAddonsOnly
++      operator: Exists
+   workload:
+     nodeSelector:
+       kubernetes.io/os: linux

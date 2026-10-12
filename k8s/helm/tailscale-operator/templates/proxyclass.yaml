@@ -3,6 +3,9 @@ apiVersion: tailscale.com/v1alpha1
 kind: ProxyClass
 metadata:
   name: {{ .Values.proxyClass.name | default "default-proxy-class" }}
+  annotations:
+    # The ProxyClass CRD ships in this same release, so create this after it
+    helm.sh/hook: post-install,post-upgrade
 spec:
   statefulSet:
     pod:

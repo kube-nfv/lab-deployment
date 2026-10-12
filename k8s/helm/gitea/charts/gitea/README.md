@@ -43,6 +43,8 @@
   - [Security](#security)
   - [Service](#service)
   - [Ingress](#ingress)
+  - [Route](#route)
+  - [Gateway API](#gateway-api)
   - [deployment](#deployment)
   - [ServiceAccount](#serviceaccount)
   - [Persistence](#persistence-1)
@@ -280,6 +282,42 @@ If `.Values.image.rootless: true`, then the following will occur. In case you us
 
   [see deployment.yaml](./templates/gitea/deployment.yaml) template inside container "env" declarations
 
+#### OpenShift Compatibility
+
+When installing on OpenShift, enable the compatibility profile so chart-managed pods render SCC-safe defaults and the Gitea init containers stop forcing `runAsUser: 1000`:
+
+```yaml
+openshift:
+  enabled: true
+```
+
+When enabled, the chart applies `allowPrivilegeEscalation: false`, drops all
+Linux capabilities, sets `runAsNonRoot: true`, uses
+`seccompProfile.type: RuntimeDefault`, and leaves `hostUsers` unset unless
+`openshift.hostUsers` is explicitly overridden.
+
+The deployment keeps the existing vanilla Kubernetes behavior when OpenShift
+compatibility is disabled. Auto-detection relies on the
+`security.openshift.io/v1/SecurityContextConstraints` API, so set
+`openshift.enabled: true` explicitly when rendering outside a live cluster.
+
+If you also want to expose Gitea through an OpenShift Route, enable the optional Route resource:
+
+```yaml
+route:
+  enabled: true
+  host: git.apps.example.com
+  tls:
+    termination: edge
+```
+
+When `route.host` is set, the chart uses it for `DOMAIN`, `SSH_DOMAIN`, and `ROOT_URL`. Setting `route.tls.termination` also switches the default `ROOT_URL` scheme to `https`.
+
+#### Gateway API
+
+The chart can also expose Gitea through Gateway API resources (`HTTPRoute`, `TCPRoute`, `BackendTLSPolicy`, and optionally `Gateway`).
+See [docs/gateway-api.md](docs/gateway-api.md) for the full guide, including how routes interact with `ROOT_URL`/`DOMAIN` resolution and recommended topologies.
+
 #### Session, Cache and Queue
 
 The session, cache and queue settings are set to use the built-in Valkey Cluster sub-chart dependency.
@@ -381,7 +419,7 @@ gitea:
 ```
 
 This would mount the two additional volumes (`oauth` and `some-additionals`) from different sources to the init container where the _app.ini_ gets updated.
-All files mounted that way will be read and converted to environment variables and then added to the _app.ini_ using [environment-to-ini](https://github.com/go-gitea/gitea/tree/main/contrib/environment-to-ini).
+All files mounted that way will be read and converted to environment variables and then added to the _app.ini_ using [Gitea config edit-ini](https://docs.gitea.com/administration/config-cheat-sheet#use-environment-variables-to-setup-gitea).
 
 The key of such additional source represents the section inside the _app.ini_.
 The value for each key can be multiline ini-like definitions.
@@ -422,10 +460,10 @@ Users are able to define their own environment variables, which are loaded into 
 We also support to directly interact with the generated _app.ini_.
 
 To inject self defined variables into the _app.ini_ a certain format needs to be honored.
-This is described in detail on the [env-to-ini](https://github.com/go-gitea/gitea/tree/main/contrib/environment-to-ini) page.
+This is described in detail on the [Gitea config edit-ini](https://docs.gitea.com/administration/config-cheat-sheet#use-environment-variables-to-setup-gitea) page.
 
 Prior to Gitea 1.20 and Chart 9.0.0 the helm chart had a custom prefix `ENV_TO_INI`.
-After the support for a custom prefix was removed in Gite core, the prefix was changed to `GITEA`.
+After the support for a custom prefix was removed in Gitea core, the prefix was changed to `GITEA`.
 
 For example a database setting needs to have the following format:
 
@@ -975,12 +1013,14 @@ To comply with the Gitea helm chart definition of the digest parameter, a "custo
 
 ### Security
 
-| Name                         | Description                                                     | Value  |
-| ---------------------------- | --------------------------------------------------------------- | ------ |
-| `podSecurityContext.fsGroup` | Set the shared file system group for all containers in the pod. | `1000` |
-| `containerSecurityContext`   | Security context                                                | `{}`   |
-| `securityContext`            | Run init and Gitea containers as a specific securityContext     | `{}`   |
-| `podDisruptionBudget`        | Pod disruption budget                                           | `{}`   |
+| Name                       | Description                                                                                                                          | Value |
+| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ | ----- |
+| `openshift.enabled`        | Enable OpenShift compatibility defaults for chart-managed pods. Defaults to auto-detect based on the SecurityContextConstraints API. | `nil` |
+| `openshift.hostUsers`      | Override the PodSpec hostUsers field for chart-managed pods. When unset, the field is omitted so the platform default is used.       | `nil` |
+| `podSecurityContext`       | Pod security context. On non-OpenShift clusters the chart defaults `fsGroup` to `1000` when this map is empty.                       | `{}`  |
+| `containerSecurityContext` | Security context                                                                                                                     | `{}`  |
+| `securityContext`          | Run init and Gitea containers as a specific securityContext                                                                          | `{}`  |
+| `podDisruptionBudget`      | Pod disruption budget                                                                                                                | `{}`  |
 
 ### Service
 
@@ -1025,6 +1065,52 @@ To comply with the Gitea helm chart definition of the digest parameter, a "custo
 | `ingress.hosts[0].host`          | Default Ingress host            | `git.example.com` |
 | `ingress.hosts[0].paths[0].path` | Default Ingress path            | `/`               |
 | `ingress.tls`                    | Ingress tls settings            | `[]`              |
+
+### Route
+
+| Name                                      | Description                                                                                                    | Value   |
+| ----------------------------------------- | -------------------------------------------------------------------------------------------------------------- | ------- |
+| `route.enabled`                           | Enable OpenShift Route                                                                                         | `false` |
+| `route.annotations`                       | Route annotations                                                                                              | `{}`    |
+| `route.host`                              | Route host. When unset, OpenShift may generate one and Gitea URL defaults fall back to ingress/service values. | `""`    |
+| `route.path`                              | Route path                                                                                                     | `""`    |
+| `route.wildcardPolicy`                    | Route wildcard policy                                                                                          | `None`  |
+| `route.tls.termination`                   | Route TLS termination type                                                                                     | `nil`   |
+| `route.tls.insecureEdgeTerminationPolicy` | Route insecure edge termination policy                                                                         | `nil`   |
+| `route.tls.key`                           | Route TLS key                                                                                                  | `nil`   |
+| `route.tls.certificate`                   | Route TLS certificate                                                                                          | `nil`   |
+| `route.tls.caCertificate`                 | Route TLS CA certificate                                                                                       | `nil`   |
+| `route.tls.destinationCACertificate`      | Route destination CA certificate                                                                               | `nil`   |
+
+### Gateway API
+
+| Name                                                            | Description                                                                                                                                                                | Value   |
+| --------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------- |
+| `gatewayAPI.enabled`                                            | Enable deployment of Gateway API resources                                                                                                                                 | `false` |
+| `gatewayAPI.core.backendTLSPolicy.enabled`                      | Render a BackendTLSPolicy resource for encrypted backend traffic                                                                                                           | `false` |
+| `gatewayAPI.core.backendTLSPolicy.annotations`                  | Annotations applied to the BackendTLSPolicy                                                                                                                                | `{}`    |
+| `gatewayAPI.core.backendTLSPolicy.labels`                       | Additional labels applied to the BackendTLSPolicy                                                                                                                          | `{}`    |
+| `gatewayAPI.core.backendTLSPolicy.targetRefs`                   | Target references for the BackendTLSPolicy. Defaults to the HTTP service.                                                                                                  | `[]`    |
+| `gatewayAPI.core.backendTLSPolicy.validation`                   | Validation configuration (required when enabled). See `docs/gateway-api.md`.                                                                                               | `{}`    |
+| `gatewayAPI.core.backendTLSPolicy.validation.caCertificateRefs` | CA certificate references for the BackendTLSPolicy validation. See `docs/gateway-api.md`.                                                                                  |         |
+| `gatewayAPI.core.backendTLSPolicy.validation.hostname`          | Hostname for the BackendTLSPolicy validation. Must be the Common Name (CN) or a Subject Alternative Name (SAN) of the Gitea server certificate. See `docs/gateway-api.md`. |         |
+| `gatewayAPI.core.httpRoute.enabled`                             | Render an HTTPRoute resource                                                                                                                                               | `false` |
+| `gatewayAPI.core.httpRoute.annotations`                         | Annotations applied to the HTTPRoute                                                                                                                                       | `{}`    |
+| `gatewayAPI.core.httpRoute.labels`                              | Additional labels applied to the HTTPRoute                                                                                                                                 | `{}`    |
+| `gatewayAPI.core.httpRoute.tls`                                 | When true, treat the upstream Gateway as terminating TLS so `ROOT_URL` uses `https`.                                                                                       | `false` |
+| `gatewayAPI.core.httpRoute.parentRefs`                          | Parent gateway references (required when enabled).                                                                                                                         | `[]`    |
+| `gatewayAPI.core.httpRoute.hostnames`                           | List of hostnames for the HTTPRoute.                                                                                                                                       | `[]`    |
+| `gatewayAPI.core.httpRoute.rules`                               | Custom routing rules. Defaults to a PathPrefix `/` rule targeting the HTTP service.                                                                                        | `[]`    |
+| `gatewayAPI.core.tcpRoute.enabled`                              | Render a TCPRoute resource (typically for SSH)                                                                                                                             | `false` |
+| `gatewayAPI.core.tcpRoute.annotations`                          | Annotations applied to the TCPRoute                                                                                                                                        | `{}`    |
+| `gatewayAPI.core.tcpRoute.labels`                               | Additional labels applied to the TCPRoute                                                                                                                                  | `{}`    |
+| `gatewayAPI.core.tcpRoute.parentRefs`                           | Parent gateway references (required when enabled).                                                                                                                         | `[]`    |
+| `gatewayAPI.core.tcpRoute.rules`                                | Custom routing rules. Defaults to a rule targeting the SSH service.                                                                                                        | `[]`    |
+| `gatewayAPI.nginx.clientSettingsPolicies.enabled`               | Render a ClientSettingsPolicy (NGINX Gateway Fabric) to raise the client request body limit                                                                                | `false` |
+| `gatewayAPI.nginx.clientSettingsPolicies.annotations`           | Annotations applied to the ClientSettingsPolicy                                                                                                                            | `{}`    |
+| `gatewayAPI.nginx.clientSettingsPolicies.labels`                | Additional labels applied to the ClientSettingsPolicy                                                                                                                      | `{}`    |
+| `gatewayAPI.nginx.clientSettingsPolicies.targetRef`             | Target reference for the ClientSettingsPolicy. Defaults to the chart's HTTPRoute.                                                                                          | `{}`    |
+| `gatewayAPI.nginx.clientSettingsPolicies.body`                  | Client body settings (required when enabled), e.g. `maxSize`. See `docs/gateway-api.md`.                                                                                   | `{}`    |
 
 ### deployment
 
@@ -1098,29 +1184,30 @@ To comply with the Gitea helm chart definition of the digest parameter, a "custo
 
 ### Gitea
 
-| Name                                         | Description                                                                                                                    | Value                |
-| -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ | -------------------- |
-| `gitea.admin.username`                       | Username for the Gitea admin user                                                                                              | `gitea_admin`        |
-| `gitea.admin.existingSecret`                 | Use an existing secret to store admin user credentials                                                                         | `nil`                |
-| `gitea.admin.password`                       | Password for the Gitea admin user                                                                                              | `r8sA8CPHD9!bt6d`    |
-| `gitea.admin.email`                          | Email for the Gitea admin user                                                                                                 | `gitea@local.domain` |
-| `gitea.admin.passwordMode`                   | Mode for how to set/update the admin user password. Options are: initialOnlyNoReset, initialOnlyRequireReset, and keepUpdated  | `keepUpdated`        |
-| `gitea.metrics.enabled`                      | Enable Gitea metrics                                                                                                           | `false`              |
-| `gitea.metrics.token`                        | used for `bearer` token authentication on metrics endpoint. If not specified or empty metrics endpoint is public.              | `nil`                |
-| `gitea.metrics.serviceMonitor.enabled`       | Enable Gitea metrics service monitor. Requires, that `gitea.metrics.enabled` is also set to true, to enable metrics generally. | `false`              |
-| `gitea.metrics.serviceMonitor.interval`      | Interval at which metrics should be scraped. If not specified Prometheus' global scrape interval is used.                      | `""`                 |
-| `gitea.metrics.serviceMonitor.relabelings`   | RelabelConfigs to apply to samples before scraping.                                                                            | `[]`                 |
-| `gitea.metrics.serviceMonitor.scheme`        | HTTP scheme to use for scraping. For example `http` or `https`. Default is http.                                               | `""`                 |
-| `gitea.metrics.serviceMonitor.scrapeTimeout` | Timeout after which the scrape is ended. If not specified, global Prometheus scrape timeout is used.                           | `""`                 |
-| `gitea.metrics.serviceMonitor.tlsConfig`     | TLS configuration to use when scraping the metric endpoint by Prometheus.                                                      | `{}`                 |
-| `gitea.ldap`                                 | LDAP configuration                                                                                                             | `[]`                 |
-| `gitea.oauth`                                | OAuth configuration                                                                                                            | `[]`                 |
-| `gitea.config.server.SSH_PORT`               | SSH port for rootlful Gitea image                                                                                              | `22`                 |
-| `gitea.config.server.SSH_LISTEN_PORT`        | SSH port for rootless Gitea image                                                                                              | `2222`               |
-| `gitea.additionalConfigSources`              | Additional configuration from secret or configmap                                                                              | `[]`                 |
-| `gitea.additionalConfigFromEnvs`             | Additional configuration sources from environment variables                                                                    | `[]`                 |
-| `gitea.podAnnotations`                       | Annotations for the Gitea pod                                                                                                  | `{}`                 |
-| `gitea.ssh.logLevel`                         | Configure OpenSSH's log level. Only available for root-based Gitea image.                                                      | `INFO`               |
+| Name                                         | Description                                                                                                                                                                     | Value                |
+| -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------- |
+| `gitea.admin.username`                       | Username for the Gitea admin user                                                                                                                                               | `gitea_admin`        |
+| `gitea.admin.existingSecret`                 | Use an existing secret to store admin user credentials                                                                                                                          | `nil`                |
+| `gitea.admin.password`                       | Password for the Gitea admin user                                                                                                                                               | `r8sA8CPHD9!bt6d`    |
+| `gitea.admin.email`                          | Email for the Gitea admin user                                                                                                                                                  | `gitea@local.domain` |
+| `gitea.admin.passwordMode`                   | Mode for how to set/update the admin user password. Options are: initialOnlyNoReset, initialOnlyRequireReset, and keepUpdated                                                   | `keepUpdated`        |
+| `gitea.metrics.enabled`                      | Enable Gitea metrics                                                                                                                                                            | `false`              |
+| `gitea.metrics.token`                        | used for `bearer` token authentication on metrics endpoint. If not specified or empty metrics endpoint is public.                                                               | `nil`                |
+| `gitea.metrics.serviceMonitor.enabled`       | Enable Gitea metrics service monitor. Requires, that `gitea.metrics.enabled` is also set to true, to enable metrics generally.                                                  | `false`              |
+| `gitea.metrics.serviceMonitor.interval`      | Interval at which metrics should be scraped. If not specified Prometheus' global scrape interval is used.                                                                       | `""`                 |
+| `gitea.metrics.serviceMonitor.relabelings`   | RelabelConfigs to apply to samples before scraping.                                                                                                                             | `[]`                 |
+| `gitea.metrics.serviceMonitor.scheme`        | HTTP scheme to use for scraping. For example `http` or `https`. Default is http.                                                                                                | `""`                 |
+| `gitea.metrics.serviceMonitor.scrapeTimeout` | Timeout after which the scrape is ended. If not specified, global Prometheus scrape timeout is used.                                                                            | `""`                 |
+| `gitea.metrics.serviceMonitor.tlsConfig`     | TLS configuration to use when scraping the metric endpoint by Prometheus.                                                                                                       | `{}`                 |
+| `gitea.ldap`                                 | LDAP configuration                                                                                                                                                              | `[]`                 |
+| `gitea.oauth`                                | OAuth configuration                                                                                                                                                             | `[]`                 |
+| `gitea.config.server.SSH_PORT`               | SSH port for rootlful Gitea image                                                                                                                                               | `22`                 |
+| `gitea.config.server.SSH_LISTEN_PORT`        | SSH port for rootless Gitea image                                                                                                                                               | `2222`               |
+| `gitea.additionalConfigSources`              | Additional configuration from secret or configmap                                                                                                                               | `[]`                 |
+| `gitea.additionalConfigFromEnvs`             | Additional configuration sources from environment variables                                                                                                                     | `[]`                 |
+| `gitea.extraEnvSourceFile`                   | Source environment variables from a file during init container startup. This is especially useful for reading environment variable files generated by the Vault agent-injector. | `nil`                |
+| `gitea.podAnnotations`                       | Annotations for the Gitea pod                                                                                                                                                   | `{}`                 |
+| `gitea.ssh.logLevel`                         | Configure OpenSSH's log level. Only available for root-based Gitea image.                                                                                                       | `INFO`               |
 
 ### LivenessProbe
 
@@ -1162,35 +1249,44 @@ To comply with the Gitea helm chart definition of the digest parameter, a "custo
 
 Valkey cluster and [Valkey](#valkey) cannot be enabled at the same time.
 
-| Name                                                | Description                                                           | Value                          |
-| --------------------------------------------------- | --------------------------------------------------------------------- | ------------------------------ |
-| `valkey-cluster.enabled`                            | Enable valkey cluster                                                 | `true`                         |
-| `valkey-cluster.usePassword`                        | Whether to use password authentication.                               | `false`                        |
-| `valkey-cluster.usePasswordFiles`                   | Whether to mount passwords as files instead of environment variables. | `false`                        |
-| `valkey-cluster.image.repository`                   | Image repository, eg. `bitnamilegacy/valkey-cluster`.                 | `bitnamilegacy/valkey-cluster` |
-| `valkey-cluster.cluster.nodes`                      | Number of valkey cluster master nodes                                 | `3`                            |
-| `valkey-cluster.cluster.replicas`                   | Number of valkey cluster master node replicas                         | `0`                            |
-| `valkey-cluster.metrics.image.repository`           | Image repository, eg. `bitnamilegacy/redis-exporter`.                 | `bitnamilegacy/redis-exporter` |
-| `valkey-cluster.service.ports.valkey`               | Port of Valkey service                                                | `6379`                         |
-| `valkey-cluster.sysctlImage.repository`             | Image repository, eg. `bitnamilegacy/os-shell`.                       | `bitnamilegacy/os-shell`       |
-| `valkey-cluster.volumePermissions.image.repository` | Image repository, eg. `bitnamilegacy/os-shell`.                       | `bitnamilegacy/os-shell`       |
+| Name                                                | Description                                                                 | Value                          |
+| --------------------------------------------------- | --------------------------------------------------------------------------- | ------------------------------ |
+| `valkey-cluster.enabled`                            | Enable valkey cluster                                                       | `true`                         |
+| `valkey-cluster.usePassword`                        | Whether to use password authentication.                                     | `false`                        |
+| `valkey-cluster.usePasswordFiles`                   | Whether to mount passwords as files instead of environment variables.       | `false`                        |
+| `valkey-cluster.image.repository`                   | Image repository, eg. `bitnamilegacy/valkey-cluster`.                       | `bitnamilegacy/valkey-cluster` |
+| `valkey-cluster.cluster.nodes`                      | Number of valkey cluster master nodes                                       | `3`                            |
+| `valkey-cluster.cluster.replicas`                   | Number of valkey cluster master node replicas                               | `0`                            |
+| `valkey-cluster.metrics.image.repository`           | Image repository, eg. `bitnamilegacy/redis-exporter`.                       | `bitnamilegacy/redis-exporter` |
+| `valkey-cluster.persistence.enabled`                | Enable persistence on Valkey replicas nodes using Persistent Volume Claims. | `true`                         |
+| `valkey-cluster.persistence.storageClass`           | Persistent Volume storage class.                                            | `""`                           |
+| `valkey-cluster.persistence.size`                   | Persistent Volume size.                                                     | `8Gi`                          |
+| `valkey-cluster.service.ports.valkey`               | Port of Valkey service                                                      | `6379`                         |
+| `valkey-cluster.sysctlImage.repository`             | Image repository, eg. `bitnamilegacy/os-shell`.                             | `bitnamilegacy/os-shell`       |
+| `valkey-cluster.volumePermissions.image.repository` | Image repository, eg. `bitnamilegacy/os-shell`.                             | `bitnamilegacy/os-shell`       |
 
 ### valkey
 
 Valkey and [Valkey cluster](#valkey-cluster) cannot be enabled at the same time.
 
-| Name                                        | Description                                           | Value                           |
-| ------------------------------------------- | ----------------------------------------------------- | ------------------------------- |
-| `valkey.enabled`                            | Enable valkey standalone or replicated                | `false`                         |
-| `valkey.architecture`                       | Whether to use standalone or replication              | `standalone`                    |
-| `valkey.kubectl.image.repository`           | Image repository, eg. `bitnamilegacy/kubectl`.        | `bitnamilegacy/kubectl`         |
-| `valkey.image.repository`                   | Image repository, eg. `bitnamilegacy/valkey`.         | `bitnamilegacy/valkey`          |
-| `valkey.global.valkey.password`             | Required password                                     | `changeme`                      |
-| `valkey.master.count`                       | Number of Valkey master instances to deploy           | `1`                             |
-| `valkey.master.service.ports.valkey`        | Port of Valkey service                                | `6379`                          |
-| `valkey.metrics.image.repository`           | Image repository, eg. `bitnamilegacy/redis-exporter`. | `bitnamilegacy/redis-exporter`  |
-| `valkey.sentinel.image.repository`          | Image repository, eg. `bitnamilegacy/sentinel`.       | `bitnamilegacy/valkey-sentinel` |
-| `valkey.volumePermissions.image.repository` | Image repository, eg. `bitnamilegacy/os-shell`.       | `bitnamilegacy/os-shell`        |
+| Name                                        | Description                                                                 | Value                           |
+| ------------------------------------------- | --------------------------------------------------------------------------- | ------------------------------- |
+| `valkey.enabled`                            | Enable valkey standalone or replicated                                      | `false`                         |
+| `valkey.architecture`                       | Whether to use standalone or replication                                    | `standalone`                    |
+| `valkey.kubectl.image.repository`           | Image repository, eg. `bitnamilegacy/kubectl`.                              | `bitnamilegacy/kubectl`         |
+| `valkey.image.repository`                   | Image repository, eg. `bitnamilegacy/valkey`.                               | `bitnamilegacy/valkey`          |
+| `valkey.global.valkey.password`             | Required password                                                           | `changeme`                      |
+| `valkey.master.count`                       | Number of Valkey master instances to deploy                                 | `1`                             |
+| `valkey.master.service.ports.valkey`        | Port of Valkey service                                                      | `6379`                          |
+| `valkey.metrics.image.repository`           | Image repository, eg. `bitnamilegacy/redis-exporter`.                       | `bitnamilegacy/redis-exporter`  |
+| `valkey.primary.persistence.enabled`        | Enable persistence on Valkey replicas nodes using Persistent Volume Claims. | `true`                          |
+| `valkey.primary.persistence.storageClass`   | Persistent Volume storage class.                                            | `""`                            |
+| `valkey.primary.persistence.size`           | Persistent Volume size.                                                     | `8Gi`                           |
+| `valkey.replica.persistence.enabled`        | Enable persistence on Valkey replicas nodes using Persistent Volume Claims. | `true`                          |
+| `valkey.replica.persistence.storageClass`   | Persistent Volume storage class.                                            | `""`                            |
+| `valkey.replica.persistence.size`           | Persistent Volume size.                                                     | `8Gi`                           |
+| `valkey.sentinel.image.repository`          | Image repository, eg. `bitnamilegacy/sentinel`.                             | `bitnamilegacy/valkey-sentinel` |
+| `valkey.volumePermissions.image.repository` | Image repository, eg. `bitnamilegacy/os-shell`.                             | `bitnamilegacy/os-shell`        |
 
 ### PostgreSQL HA
 
@@ -1209,6 +1305,8 @@ Valkey and [Valkey cluster](#valkey-cluster) cannot be enabled at the same time.
 | `postgresql-ha.pgpool.image.repository`            | Image repository, eg. `bitnamilegacy/pgpool`.                    | `bitnamilegacy/pgpool`            |
 | `postgresql-ha.pgpool.srCheckPassword`             | pgpool srCheckPassword                                           | `changeme4`                       |
 | `postgresql-ha.service.ports.postgresql`           | PostgreSQL service port (overrides `service.ports.postgresql`)   | `5432`                            |
+| `postgresql-ha.persistence.enabled`                | Enable persistence.                                              | `true`                            |
+| `postgresql-ha.persistence.storageClass`           | Persistent Volume Storage Class.                                 | `""`                              |
 | `postgresql-ha.persistence.size`                   | PVC Storage Request for PostgreSQL HA volume                     | `10Gi`                            |
 | `postgresql-ha.volumePermissions.image.repository` | Image repository, eg. `bitnamilegacy/os-shell`.                  | `bitnamilegacy/os-shell`          |
 
@@ -1222,7 +1320,12 @@ Valkey and [Valkey cluster](#valkey-cluster) cannot be enabled at the same time.
 | `postgresql.global.postgresql.auth.username`            | Name for a custom user to create (overrides `auth.username`)     | `gitea`                           |
 | `postgresql.global.postgresql.service.ports.postgresql` | PostgreSQL service port (overrides `service.ports.postgresql`)   | `5432`                            |
 | `postgresql.image.repository`                           | Image repository, eg. `bitnamilegacy/postgresql`.                | `bitnamilegacy/postgresql`        |
-| `postgresql.primary.persistence.size`                   | PVC Storage Request for PostgreSQL volume                        | `10Gi`                            |
+| `postgresql.primary.persistence.enabled`                | Enable persistence.                                              | `true`                            |
+| `postgresql.primary.persistence.storageClass`           | Persistent Volume storage class.                                 | `""`                              |
+| `postgresql.primary.persistence.size`                   | PVC Storage Request for PostgreSQL volume.                       | `10Gi`                            |
+| `postgresql.readReplicas.persistence.enabled`           | Enable PostgreSQL read only data persistence using PVC.          | `true`                            |
+| `postgresql.readReplicas.persistence.storageClass`      | Persistent Volume storage class.                                 | `""`                              |
+| `postgresql.readReplicas.persistence.size`              | PVC Storage Request for PostgreSQL volume.                       | `""`                              |
 | `postgresql.metrics.image.repository`                   | Image repository, eg. `bitnamilegacy/postgres-exporter`.         | `bitnamilegacy/postgres-exporter` |
 | `postgresql.volumePermissions.image.repository`         | Image repository, eg. `bitnamilegacy/os-shell`.                  | `bitnamilegacy/os-shell`          |
 
@@ -1511,7 +1614,7 @@ mariadb:
 
 ### App.ini generation <!-- omit from toc -->
 
-The app.ini generation has changed and now utilizes the environment-to-ini script provided by newer Gitea versions.
+The app.ini generation has changed and now uses the `gitea config edit-ini` subcommand introduced in Gitea 1.26.
 This change ensures, that the app.ini is now persistent.
 
 ### Secret Key generation <!-- omit from toc -->

@@ -62,9 +62,14 @@ imagePullSecrets: []
 
 ## @section Security
 # Security context is only usable with rootless image due to image design
-## @param podSecurityContext.fsGroup Set the shared file system group for all containers in the pod.
-podSecurityContext:
-  fsGroup: 1000
+## @param openshift.enabled Enable OpenShift compatibility defaults for chart-managed pods. Defaults to auto-detect based on the SecurityContextConstraints API.
+## @param openshift.hostUsers Override the PodSpec hostUsers field for chart-managed pods. When unset, the field is omitted so the platform default is used.
+openshift:
+  enabled: null
+  hostUsers: null
+
+## @param podSecurityContext Pod security context. On non-OpenShift clusters the chart defaults `fsGroup` to `1000` when this map is empty.
+podSecurityContext: {}
 
 ## @param containerSecurityContext Security context
 containerSecurityContext: {}
@@ -177,11 +182,120 @@ ingress:
   #    hosts:
   #      - git.example.com
 
+## @section Route
+## @param route.enabled Enable OpenShift Route
+## @param route.annotations Route annotations
+## @param route.host Route host. When unset, OpenShift may generate one and Gitea URL defaults fall back to ingress/service values.
+## @param route.path Route path
+## @param route.wildcardPolicy Route wildcard policy
+## @param route.tls.termination Route TLS termination type
+## @param route.tls.insecureEdgeTerminationPolicy Route insecure edge termination policy
+## @param route.tls.key Route TLS key
+## @param route.tls.certificate Route TLS certificate
+## @param route.tls.caCertificate Route TLS CA certificate
+## @param route.tls.destinationCACertificate Route destination CA certificate
+route:
+  enabled: false
+  annotations: {}
+  host: ""
+  path: ""
+  wildcardPolicy: None
+  tls:
+    termination:
+    insecureEdgeTerminationPolicy:
+    key:
+    certificate:
+    caCertificate:
+    destinationCACertificate:
+
+## @section Gateway API
+## See docs/gateway-api.md for full guidance.
+gatewayAPI:
+  ## @param gatewayAPI.enabled Enable deployment of Gateway API resources
+  enabled: false
+
+  core:
+    ## @param gatewayAPI.core.backendTLSPolicy.enabled Render a BackendTLSPolicy resource for encrypted backend traffic
+    ## @param gatewayAPI.core.backendTLSPolicy.annotations Annotations applied to the BackendTLSPolicy
+    ## @param gatewayAPI.core.backendTLSPolicy.labels Additional labels applied to the BackendTLSPolicy
+    ## @param gatewayAPI.core.backendTLSPolicy.targetRefs Target references for the BackendTLSPolicy. Defaults to the HTTP service.
+    ## @param gatewayAPI.core.backendTLSPolicy.validation Validation configuration (required when enabled). See `docs/gateway-api.md`.
+    ## @extra gatewayAPI.core.backendTLSPolicy.validation.caCertificateRefs CA certificate references for the BackendTLSPolicy validation. See `docs/gateway-api.md`.
+    ## @extra gatewayAPI.core.backendTLSPolicy.validation.hostname Hostname for the BackendTLSPolicy validation. Must be the Common Name (CN) or a Subject Alternative Name (SAN) of the gitea server certificate. See `docs/gateway-api.md`.
+    backendTLSPolicy:
+      enabled: false
+      annotations: {}
+      labels: {}
+      targetRefs: []
+      validation: {}
+      #  caCertificateRefs:
+      #    - name: gitea-ca
+      #      group: ""
+      #      kind: ConfigMap
+      #  hostname: gitea-http
+
+    ## @param gatewayAPI.core.httpRoute.enabled Render an HTTPRoute resource
+    ## @param gatewayAPI.core.httpRoute.annotations Annotations applied to the HTTPRoute
+    ## @param gatewayAPI.core.httpRoute.labels Additional labels applied to the HTTPRoute
+    ## @param gatewayAPI.core.httpRoute.tls When true, treat the upstream Gateway as terminating TLS so `ROOT_URL` uses `https`.
+    ## @param gatewayAPI.core.httpRoute.parentRefs Parent gateway references (required when enabled).
+    ## @param gatewayAPI.core.httpRoute.hostnames List of hostnames for the HTTPRoute.
+    ## @param gatewayAPI.core.httpRoute.rules Custom routing rules. Defaults to a PathPrefix `/` rule targeting the HTTP service.
+    httpRoute:
+      enabled: false
+      annotations: {}
+      labels: {}
+      tls: false
+      parentRefs: []
+      # - group: gateway.networking.k8s.io
+      #   kind: Gateway
+      #   name: shared-gateway
+      #   namespace: gateway-system
+      #   sectionName: http
+      hostnames: []
+      # - git.example.com
+      rules: []
+
+
+    ## @param gatewayAPI.core.tcpRoute.enabled Render a TCPRoute resource (typically for SSH)
+    ## @param gatewayAPI.core.tcpRoute.annotations Annotations applied to the TCPRoute
+    ## @param gatewayAPI.core.tcpRoute.labels Additional labels applied to the TCPRoute
+    ## @param gatewayAPI.core.tcpRoute.parentRefs Parent gateway references (required when enabled).
+    ## @param gatewayAPI.core.tcpRoute.rules Custom routing rules. Defaults to a rule targeting the SSH service.
+    tcpRoute:
+      enabled: false
+      annotations: {}
+      labels: {}
+      parentRefs: []
+      # - group: gateway.networking.k8s.io
+      #   kind: Gateway
+      #   name: shared-gateway
+      #   namespace: gateway-system
+      #   sectionName: ssh
+      rules: []
+
+
+  ## NGINX Gateway Fabric specific resources. Only relevant when the upstream
+  ## Gateway is backed by NGINX Gateway Fabric (nginx.org). Other implementations
+  ## (Envoy Gateway, Cilium, ...) do not impose a default request body size limit.
+  nginx:
+    ## @param gatewayAPI.nginx.clientSettingsPolicies.enabled Render a ClientSettingsPolicy (NGINX Gateway Fabric) to raise the client request body limit
+    ## @param gatewayAPI.nginx.clientSettingsPolicies.annotations Annotations applied to the ClientSettingsPolicy
+    ## @param gatewayAPI.nginx.clientSettingsPolicies.labels Additional labels applied to the ClientSettingsPolicy
+    ## @param gatewayAPI.nginx.clientSettingsPolicies.targetRef Target reference for the ClientSettingsPolicy. Defaults to the chart's HTTPRoute.
+    ## @param gatewayAPI.nginx.clientSettingsPolicies.body Client body settings (required when enabled), e.g. `maxSize`. See `docs/gateway-api.md`.
+    clientSettingsPolicies:
+      enabled: false
+      annotations: {}
+      labels: {}
+      targetRef: {}
+      body: {}
+      #   maxSize: 100m
+
 ## @section deployment
 #
 ## @param resources Kubernetes resources
-resources:
-  {}
+resources: {}
   # We usually recommend not to specify default resources and to leave this as a conscious
   # choice for the user. This also increases chances charts run on environments with little
   # resources, such as Minikube. If you do want to specify resources, uncomment the following
@@ -222,10 +336,9 @@ priorityClassName: ""
 ## @param deployment.labels Labels for the deployment
 ## @param deployment.annotations Annotations for the Gitea deployment to be created
 deployment:
-  env:
-    []
-    # - name: VARIABLE
-    #   value: my-value
+  env: []
+  # - name: VARIABLE
+  #   value: my-value
   terminationGracePeriodSeconds: 60
   labels: {}
   annotations: {}
@@ -392,8 +505,7 @@ gitea:
       tlsConfig: {}
 
   ## @param gitea.ldap LDAP configuration
-  ldap:
-    []
+  ldap: []
     # - name: "LDAP 1"
     #  existingSecret:
     #  securityProtocol:
@@ -410,8 +522,7 @@ gitea:
 
   # Either specify inline `key` and `secret` or refer to them via `existingSecret`
   ## @param gitea.oauth OAuth configuration
-  oauth:
-    []
+  oauth: []
     # - name: 'OAuth 1'
     #   provider:
     #   key:
@@ -445,6 +556,28 @@ gitea:
 
   ## @param gitea.additionalConfigFromEnvs Additional configuration sources from environment variables
   additionalConfigFromEnvs: []
+
+  ## @param gitea.extraEnvSourceFile Source environment variables from a file during init container startup. This is especially useful for reading environment variable files generated by the Vault agent-injector.
+  ## See the sample annotations below for reference.
+  ## podAnnotations:
+  ##   vault.hashicorp.com/agent-inject: "true"
+  ##   vault.hashicorp.com/agent-init-first: "true"
+  ##   vault.hashicorp.com/agent-inject-secret-gitea: <path/to/secret>
+  ##   vault.hashicorp.com/agent-inject-template-gitea: |
+  ##     {{- with secret "path/to/secret" -}}
+  ##     export GITEA__database__HOST="{{ .Data.data.db_host }}"
+  ##     export GITEA__database__NAME="{{ .Data.data.db_name }}"
+  ##     export GITEA__database__USER="{{ .Data.data.db_user }}"
+  ##     export GITEA__database__PASSWD="{{ .Data.data.db_password }}"
+  ##     export GITEA__queue__CONN_STR="{{ .Data.data.kv_conn_string }}"
+  ##     export GITEA__session__PROVIDER_CONFIG="{{ .Data.data.kv_conn_string }}"
+  ##     export GITEA__cache__HOST="{{ .Data.data.kv_conn_string }}"
+  ##     export GITEA_ADMIN_USERNAME="{{ .Data.data.gitea_admin_user }}"
+  ##     export GITEA_ADMIN_PASSWORD="{{ .Data.data.gitea_admin_password }}"
+  ##     {{- end }}
+
+  # extraEnvSourceFile: /vault/secrets/gitea
+  extraEnvSourceFile:
 
   ## @param gitea.podAnnotations Annotations for the Gitea pod
   podAnnotations: {}
@@ -542,6 +675,14 @@ valkey-cluster:
     image:
       repository: bitnamilegacy/redis-exporter
 
+  ## @param valkey-cluster.persistence.enabled Enable persistence on Valkey replicas nodes using Persistent Volume Claims.
+  ## @param valkey-cluster.persistence.storageClass Persistent Volume storage class.
+  ## @param valkey-cluster.persistence.size Persistent Volume size.
+  persistence:
+    enabled: true
+    storageClass: ""
+    size: 8Gi
+
   ## @param valkey-cluster.service.ports.valkey Port of Valkey service
   service:
     ports:
@@ -597,6 +738,24 @@ valkey:
     image:
       repository: bitnamilegacy/redis-exporter
 
+  primary:
+    ## @param valkey.primary.persistence.enabled Enable persistence on Valkey replicas nodes using Persistent Volume Claims.
+    ## @param valkey.primary.persistence.storageClass Persistent Volume storage class.
+    ## @param valkey.primary.persistence.size Persistent Volume size.
+    persistence:
+      enabled: true
+      storageClass: ""
+      size: 8Gi
+
+  replica:
+    ## @param valkey.replica.persistence.enabled Enable persistence on Valkey replicas nodes using Persistent Volume Claims.
+    ## @param valkey.replica.persistence.storageClass Persistent Volume storage class.
+    ## @param valkey.replica.persistence.size Persistent Volume size.
+    persistence:
+      enabled: true
+      storageClass: ""
+      size: 8Gi
+
   ## @param valkey.sentinel.image.repository Image repository, eg. `bitnamilegacy/sentinel`.
   sentinel:
     image:
@@ -651,8 +810,12 @@ postgresql-ha:
     ports:
       postgresql: 5432
 
+  ## @param postgresql-ha.persistence.enabled Enable persistence.
+  ## @param postgresql-ha.persistence.storageClass Persistent Volume Storage Class.
   ## @param postgresql-ha.persistence.size PVC Storage Request for PostgreSQL HA volume
   persistence:
+    enabled: true
+    storageClass: ""
     size: 10Gi
 
   ## @param postgresql-ha.volumePermissions.image.repository Image repository, eg. `bitnamilegacy/os-shell`.
@@ -683,10 +846,23 @@ postgresql:
   image:
     repository: bitnamilegacy/postgresql
 
-  ## @param postgresql.primary.persistence.size PVC Storage Request for PostgreSQL volume
   primary:
+    ## @param postgresql.primary.persistence.enabled Enable persistence.
+    ## @param postgresql.primary.persistence.storageClass Persistent Volume storage class.
+    ## @param postgresql.primary.persistence.size PVC Storage Request for PostgreSQL volume.
     persistence:
+      enabled: true
+      storageClass: ""
       size: 10Gi
+
+  readReplicas:
+    ## @param postgresql.readReplicas.persistence.enabled Enable PostgreSQL read only data persistence using PVC.
+    ## @param postgresql.readReplicas.persistence.storageClass Persistent Volume storage class.
+    ## @param postgresql.readReplicas.persistence.size PVC Storage Request for PostgreSQL volume.
+    persistence:
+      enabled: true
+      storageClass: ""
+      size: ""
 
   ## @param postgresql.metrics.image.repository Image repository, eg. `bitnamilegacy/postgres-exporter`.
   metrics:

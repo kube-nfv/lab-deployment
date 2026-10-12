@@ -13,3 +13,22 @@ spec:
           operator: Equal
           value: cloud
           effect: NoSchedule
+      # Use the instance service account (metadata server) instead of a cloud-sa key
+      containers:
+        - name: gce-pd-driver
+          env:
+            - name: GOOGLE_APPLICATION_CREDENTIALS
+              $patch: delete
+          volumeMounts:
+            - mountPath: /etc/cloud-sa
+              $patch: delete
+        - name: taint-controller
+          env:
+            - name: GOOGLE_APPLICATION_CREDENTIALS
+              $patch: delete
+          volumeMounts:
+            - mountPath: /etc/cloud-sa
+              $patch: delete
+      volumes:
+        - name: cloud-sa-volume
+          $patch: delete

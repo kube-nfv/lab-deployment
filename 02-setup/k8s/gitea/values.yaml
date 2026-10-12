@@ -67,6 +67,8 @@ gitea:
           operator: Equal
           value: cloud
           effect: NoSchedule
+      persistence:
+        storageClass: pd-standard
 
   valkey-cluster:
     enabled: false

@@ -3,6 +3,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: {{ include "piraeus-operator.fullname" . }}-controller-manager
+  namespace: {{ .Release.Namespace }}
   labels:
     {{- include "piraeus-operator.labels" . | nindent 4 }}
 spec:
@@ -106,6 +107,10 @@ spec:
         {{ toYaml . | nindent 8 }}
         {{- end }}
       serviceAccountName: {{ include "piraeus-operator.serviceAccountName" . }}
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       terminationGracePeriodSeconds: 10
       priorityClassName: {{ .Values.priorityClassName | default "system-cluster-critical" }}
       nodeSelector:

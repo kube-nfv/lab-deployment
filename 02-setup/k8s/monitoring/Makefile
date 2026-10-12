@@ -3,7 +3,7 @@ apply-ns:
 
 helm-upgrade: apply-ns
 	helm upgrade -i -n monitoring monitoring kube-prometheus-stack \
-		--repo https://prometheus-community.github.io/helm-charts \
+		--repo https://prometheus-community.github.io/helm-charts --version 92.3.0 \
 		-f ../../../k8s/helm/monitoring/values.yaml -f values.yaml
 
 # Copy Grafana admin secret into the osm namespace so mon can read it via secretKeyRef.

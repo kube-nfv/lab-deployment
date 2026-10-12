@@ -19,6 +19,7 @@ spec:
     singular: network-attachment-definition
     kind: NetworkAttachmentDefinition
     shortNames:
+      - nad
       - net-attach-def
   versions:
     - name: v1
@@ -72,6 +73,15 @@ rules:
       - list
       - update
       - watch
+  - apiGroups:
+      - "resource.k8s.io"
+    resources:
+      - resourceclaims
+      - resourceclaims/status
+      - resourceslices
+    verbs:
+      - get
+      - list
   - apiGroups:
       - ""
       - events.k8s.io
@@ -154,7 +164,7 @@ spec:
       serviceAccountName: multus
       containers:
         - name: kube-multus
-          image: ghcr.io/k8snetworkplumbingwg/multus-cni:snapshot-thick
+          image: ghcr.io/k8snetworkplumbingwg/multus-cni:v4.3.1-thick
           command: [ "/usr/src/multus-cni/bin/multus-daemon" ]
           resources:
             requests:
@@ -184,7 +194,7 @@ spec:
             - name: host-run-k8s-cni-cncf-io
               mountPath: /run/k8s.cni.cncf.io
             - name: host-run-netns
-              mountPath: /var/run/netns
+              mountPath: /run/netns
               mountPropagation: HostToContainer
             - name: multus-daemon-config
               mountPath: /etc/cni/net.d/multus.d
@@ -192,6 +202,8 @@ spec:
             - name: hostroot
               mountPath: /hostroot
               mountPropagation: HostToContainer
+            - mountPath: /etc/cni/multus/net.d
+              name: multus-conf-dir
           env:
             - name: MULTUS_NODE_NAME
               valueFrom:
@@ -199,7 +211,7 @@ spec:
                   fieldPath: spec.nodeName
       initContainers:
         - name: install-multus-binary
-          image: ghcr.io/k8snetworkplumbingwg/multus-cni:snapshot-thick
+          image: ghcr.io/k8snetworkplumbingwg/multus-cni:v4.3.1-thick
           command:
             - "/usr/src/multus-cni/bin/install_multus"
             - "-d"
@@ -217,7 +229,7 @@ spec:
             - name: cnibin
               mountPath: /host/opt/cni/bin
               mountPropagation: Bidirectional
-      terminationGracePeriodSeconds: 10
+      terminationGracePeriodSeconds: 30
       volumes:
         - name: cni
           hostPath:
@@ -248,4 +260,7 @@ spec:
             path: /run/k8s.cni.cncf.io
         - name: host-run-netns
           hostPath:
-            path: /var/run/netns/
+            path: /run/netns/
+        - name: multus-conf-dir
+          hostPath:
+            path: /etc/cni/multus/net.d
