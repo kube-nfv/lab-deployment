@@ -1,7 +1,12 @@
-machine:
-  install:
-    image: factory.talos.dev/gcp-installer/4a0d65c669d46663f377e7161e50cfd570c401f26fd9e7bda34a0216b6f1922b:v1.13.3
-  nodeLabels:
-    node.kubernetes.io/location: cloud
-  nodeTaints:
-    node.kubernetes.io/location: "cloud:NoSchedule"
+apiVersion: v1alpha1
+kind: KubeNodeConfig
+labels:
+  node.kubernetes.io/location: cloud
+taints:
+  node.kubernetes.io/location: "cloud:NoSchedule"
+---
+apiVersion: v1alpha1
+kind: UnattendedInstallConfig
+provisioning:
+  diskSelector:
+    match: disk.dev_path == "/dev/sda"

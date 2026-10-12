@@ -1,14 +1,19 @@
-machine:
-  kubelet:
-    extraArgs:
-      cloud-provider: external
-    nodeIP:
-      validSubnets:
-        - 100.64.0.0/10
-  kernel:
-    modules:
-      - name: openvswitch
-cluster:
-  network:
-    cni:
-      name: none
+apiVersion: v1alpha1
+kind: KubeletConfig
+extraArgs:
+  cloud-provider: external
+---
+apiVersion: v1alpha1
+kind: KubeNodeConfig
+nodeIP:
+  validSubnets:
+    - 100.64.0.0/10
+---
+apiVersion: v1alpha1
+kind: KernelModuleConfig
+name: openvswitch
+---
+# No bundled CNI: Kube-OVN is installed after bootstrap
+apiVersion: v1alpha1
+kind: KubeFlannelCNIConfig
+$patch: delete

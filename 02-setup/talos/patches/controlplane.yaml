@@ -2,23 +2,29 @@ cluster:
   etcd:
     advertisedSubnets:
       - 100.64.0.0/10
-  # Bind control-plane component metrics to all interfaces so kube-prometheus-stack
-  # can scrape them over the node IP. Talos defaults these to 127.0.0.1, which makes
-  # the kube-controller-manager / kube-scheduler / kube-proxy targets "connection refused".
-  controllerManager:
-    extraArgs:
-      bind-address: 0.0.0.0
-  scheduler:
-    extraArgs:
-      bind-address: 0.0.0.0
-  proxy:
-    extraArgs:
-      metrics-bind-address: 0.0.0.0:10249
-machine:
-  features:
-    kubernetesTalosAPIAccess:
-      enabled: true
-      allowedRoles:
-        - os:reader
-      allowedKubernetesNamespaces:
-        - kube-system
+---
+# Bind control-plane component metrics to all interfaces so kube-prometheus-stack
+# can scrape them over the node IP. Talos defaults these to 127.0.0.1, which makes
+# the kube-controller-manager / kube-scheduler / kube-proxy targets "connection refused".
+apiVersion: v1alpha1
+kind: KubeControllerManagerConfig
+extraArgs:
+  bind-address: 0.0.0.0
+---
+apiVersion: v1alpha1
+kind: KubeSchedulerConfig
+extraArgs:
+  bind-address: 0.0.0.0
+---
+# kube-proxy reads a config file; most command-line flags are ignored
+apiVersion: v1alpha1
+kind: KubeProxyConfig
+config:
+  metricsBindAddress: 0.0.0.0:10249
+---
+apiVersion: v1alpha1
+kind: KubeTalosAPIAccessConfig
+allowedRoles:
+  - os:reader
+allowedKubernetesNamespaces:
+  - kube-system

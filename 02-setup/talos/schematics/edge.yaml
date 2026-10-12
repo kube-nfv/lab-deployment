@@ -1,0 +1,11 @@
+customization:
+  extraKernelArgs:
+    - iommu=pt
+    - intel_iommu=on
+  systemExtensions:
+    officialExtensions:
+      - siderolabs/drbd
+      - siderolabs/intel-ucode
+      - siderolabs/iscsi-tools
+      - siderolabs/tailscale
+      - siderolabs/zfs

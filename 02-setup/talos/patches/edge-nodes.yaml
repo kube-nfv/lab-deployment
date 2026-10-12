@@ -1,25 +1,38 @@
-machine:
-  kernel:
-    modules:
-      - name: drbd
-        parameters:
-          - usermode_helper=disabled
-      - name: drbd_transport_tcp
-      - name: zfs
-      - name: vfio_pci
-      - name: vfio_iommu_type1
-  install:
-    image: factory.talos.dev/metal-installer/dd4c55ac62d0fcebfb2189927a204d5bddce05dbfee89a8ee1d557e1d416f800:v1.13.3
-  nodeLabels:
-    topology.kubernetes.io/region: edge
-    topology.kubernetes.io/zone: edge-site-1
-    node.kubernetes.io/location: edge
-  nodeTaints:
-    node.kubernetes.io/location: "edge:NoSchedule"
-  files:
-    - content: |
-        [plugins]
-          [plugins."io.containerd.cri.v1.runtime"]
-            device_ownership_from_security_context = true
-      path: /etc/cri/conf.d/20-customization.part
-      op: create
+apiVersion: v1alpha1
+kind: KernelModuleConfig
+name: drbd
+parameters:
+  - usermode_helper=disabled
+---
+apiVersion: v1alpha1
+kind: KernelModuleConfig
+name: drbd_transport_tcp
+---
+apiVersion: v1alpha1
+kind: KernelModuleConfig
+name: zfs
+---
+apiVersion: v1alpha1
+kind: KernelModuleConfig
+name: vfio_pci
+---
+apiVersion: v1alpha1
+kind: KernelModuleConfig
+name: vfio_iommu_type1
+---
+apiVersion: v1alpha1
+kind: KubeNodeConfig
+labels:
+  topology.kubernetes.io/region: edge
+  topology.kubernetes.io/zone: edge-site-1
+  node.kubernetes.io/location: edge
+taints:
+  node.kubernetes.io/location: "edge:NoSchedule"
+---
+apiVersion: v1alpha1
+kind: CRICustomizationConfig
+name: device-ownership
+content: |
+  [plugins]
+    [plugins."io.containerd.cri.v1.runtime"]
+      device_ownership_from_security_context = true

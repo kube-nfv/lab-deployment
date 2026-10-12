@@ -78,36 +78,32 @@ place, run the target, then re-encrypt, and do not commit in between.
 
 ## Phase 1 - Build Talos images
 
-Images are built by [Talos Image Factory](https://factory.talos.dev). Cloud and edge nodes
-use different schematics because they need different extensions:
+Images are built by [Talos Image Factory](https://factory.talos.dev) from the schematics
+in `talos/schematics/`. Cloud and edge nodes use different ones:
 
-| Node type | Extensions | Schematic ID |
+| Schematic | Extensions | Kernel args |
 |---|---|---|
-| Cloud (GCP) | `tailscale`, `gcp-guest-agent` | `4a0d65c669d46663f377e7161e50cfd570c401f26fd9e7bda34a0216b6f1922b` |
-| Edge (metal) | `tailscale` | `dd4c55ac62d0fcebfb2189927a204d5bddce05dbfee89a8ee1d557e1d416f800` |
+| `cloud.yaml` | `tailscale` | - |
+| `edge.yaml` | `tailscale`, `drbd`, `zfs`, `iscsi-tools`, `intel-ucode` | `iommu=pt intel_iommu=on` (VFIO passthrough) |
 
 The `tailscale` extension lets a node join the mesh before it joins the cluster. It is
 required on both sides.
 
-Import the cloud image once:
+`make schematics` in `talos/` registers both with the factory and prints their IDs. The
+`gen-config-*` targets derive each node's installer image from the same schematic, so
+the extensions survive upgrades.
+
+Download and import the cloud image once:
 
 ```sh
-curl -L -o talos-gcp.tar.gz \
-  "https://factory.talos.dev/image/<cloud-schematic-id>/<talos-version>/gcp-amd64.raw.tar.gz"
-gsutil cp talos-gcp.tar.gz gs://<your-bucket>/
+cd talos && make image-cloud
+gsutil cp ../_out/talos/images/talos-gcp-<talos-version>.raw.tar.gz gs://<your-bucket>/
 gcloud compute images create talos-<talos-version> \
-  --source-uri=gs://<your-bucket>/talos-gcp.tar.gz \
+  --source-uri=gs://<your-bucket>/talos-gcp-<talos-version>.raw.tar.gz \
   --guest-os-features=VIRTIO_SCSI_MULTIQUEUE
 ```
 
-For the edge, write the metal ISO to USB and boot from it:
-
-```
-https://factory.talos.dev/image/<edge-schematic-id>/<talos-version>/metal-amd64.iso
-```
-
-The installer image in `talos/patches/{cloud,edge}-nodes.yaml` must use the same
-schematic, otherwise the extensions are lost on the first upgrade.
+For the edge, `make image-edge` downloads the metal ISO; write it to USB and boot from it.
 
 ## Phase 2 - Cloud infrastructure
 
