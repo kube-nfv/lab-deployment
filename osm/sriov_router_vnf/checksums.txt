@@ -1,0 +1,2 @@
+84e16eb0a0490585ce8ea8903cf5b85f	sriov_router_vnf/sriov_router_vnfd.yaml
+d17122a067c74ed2de3db93000a8dbc7	sriov_router_vnf/cloud_init/cloud-init.cfg

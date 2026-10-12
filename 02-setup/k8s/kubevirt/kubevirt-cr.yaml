@@ -8,6 +8,10 @@ spec:
   configuration:
     developerConfiguration:
       featureGates: []
+      # Beta gates are on by default; this one stops KubeVirt from adding the SR-IOV
+      # VF resource requests from the NAD and expects network-resources-injector instead
+      disabledFeatureGates:
+        - ExternalNetResourceInjection
   customizeComponents: {}
   imagePullPolicy: IfNotPresent
   workloadUpdateStrategy: {}

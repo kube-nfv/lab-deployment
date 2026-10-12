@@ -1,0 +1,75 @@
+vnfd:
+  id: sriov-router-vnf
+  product-name: sriov-router-vnf
+  description: Ubuntu 20.04 router with a management NIC and two SR-IOV dataplane VFs
+  version: "1.0"
+
+  sw-image-desc:
+    - id: ubuntu20.04-kubevim
+      name: focal-server-cloudimg-amd64
+      image: focal-server-cloudimg-amd64
+      vim-type: kubevim
+
+  virtual-compute-desc:
+    - id: sriov-router-VM-compute
+      virtual-cpu:
+        num-virtual-cpu: 2
+      virtual-memory:
+        size: 2.0
+
+  virtual-storage-desc:
+    - id: sriov-router-VM-storage
+      size-of-storage: 10
+
+  vdu:
+    - id: sriov-router-VM
+      name: sriov-router-vm
+      description: Routes between the upstream and downstream dataplane VFs
+      sw-image-desc: ubuntu20.04-kubevim
+      virtual-compute-desc: sriov-router-VM-compute
+      virtual-storage-desc:
+        - sriov-router-VM-storage
+      cloud-init-file: cloud-init.cfg
+      int-cpd:
+        - id: eth0-int
+          virtual-network-interface-requirement:
+            - name: eth0
+              virtual-interface:
+                type: PARAVIRT
+        - id: up0-int
+          virtual-network-interface-requirement:
+            - name: up0
+              virtual-interface:
+                type: SR-IOV
+        - id: down0-int
+          virtual-network-interface-requirement:
+            - name: down0
+              virtual-interface:
+                type: SR-IOV
+
+  ext-cpd:
+    - id: vnf-mgmt-ext
+      int-cpd:
+        vdu-id: sriov-router-VM
+        cpd: eth0-int
+    - id: vnf-up-ext
+      int-cpd:
+        vdu-id: sriov-router-VM
+        cpd: up0-int
+    - id: vnf-down-ext
+      int-cpd:
+        vdu-id: sriov-router-VM
+        cpd: down0-int
+
+  mgmt-cp: vnf-mgmt-ext
+
+  df:
+    - id: default-df
+      vdu-profile:
+        - id: sriov-router-VM
+          min-number-of-instances: 1
+      instantiation-level:
+        - id: default-instantiation-level
+          vdu-level:
+            - vdu-id: sriov-router-VM
+              number-of-instances: 1

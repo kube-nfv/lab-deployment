@@ -1,0 +1,36 @@
+nsd:
+  nsd:
+    - id: sriov-router-ns
+      name: sriov-router-ns
+      description: Router VNF between the upstream (PF0) and downstream (PF1) SR-IOV networks
+      version: "1.0"
+
+      vnfd-id:
+        - sriov-router-vnf
+
+      # SR-IOV pools are set at instantiation (ns-create --config); OSM ignores
+      # provider-network in the NSD
+      virtual-link-desc:
+        - id: mgmtnet
+          mgmt-network: true
+        - id: upstream
+        - id: downstream
+
+      df:
+        - id: default-df
+          vnf-profile:
+            - id: router
+              vnfd-id: sriov-router-vnf
+              virtual-link-connectivity:
+                - virtual-link-profile-id: mgmtnet
+                  constituent-cpd-id:
+                    - constituent-base-element-id: router
+                      constituent-cpd-id: vnf-mgmt-ext
+                - virtual-link-profile-id: upstream
+                  constituent-cpd-id:
+                    - constituent-base-element-id: router
+                      constituent-cpd-id: vnf-up-ext
+                - virtual-link-profile-id: downstream
+                  constituent-cpd-id:
+                    - constituent-base-element-id: router
+                      constituent-cpd-id: vnf-down-ext
