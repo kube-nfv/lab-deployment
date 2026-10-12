@@ -1,8 +1,8 @@
 # The reference deployment
 
-What the 02-setup lab runs, as of 2026-09-13. The [README](../README.md) is written
-generically so it can be followed against any cloud project and edge site; this page
-records the actual instance.
+What the 02-setup lab runs, as of 2026-10-12, after a rebuild from scratch on a new cloud
+project. The [README](../README.md) is written generically so it can be followed against
+any cloud project and edge site; this page records the actual instance.
 
 Addresses, MAC addresses, hardware serials and credentials are not listed here. Anything
 needed to operate the cluster is read at runtime, with `kubectl get nodes -o wide` or the
@@ -12,15 +12,25 @@ cloud CLI, rather than copied from a document.
 
 | Component | Version |
 |---|---|
-| Talos Linux | v1.13.6 |
-| Kubernetes | v1.34.1 |
-| containerd | 2.2.5 |
+| Talos Linux | v1.14.2 |
+| Kubernetes | v1.36.2 |
+| containerd | 2.3.6 |
 | Open vSwitch | 3.5.5 |
-| KubeVirt | v1.8.4 |
+| Kube-OVN | v1.16.13 |
+| Multus | v4.3.1 (thick) |
+| KubeVirt | v1.9.0 |
+| CDI | v1.65.0, with a forked controller |
+| Linstor / Piraeus operator | LINSTOR 1.35.2 / v2.12.0 |
+| PD CSI driver | v1.27.4 |
+| cert-manager | v1.21.2 |
+| kube-prometheus-stack | 92.3.0 |
+| Talos CCM | v1.14.0 (chart 0.5.8) |
+| Tailscale operator | v1.102.4 |
+| CoreDNS | 1.14.7 (chart 1.48.2) |
+| OSM | 19.0.0 |
 
-Cluster name is `setup02-cluster`. The nodes were upgraded in place past the Talos version
-baked into the original cloud image, so the image version and the running version differ.
-`talosctl version` is authoritative.
+Cluster name is `setup02-cluster`. `talosctl version` and the vendored `charts/` are
+authoritative if this table drifts.
 
 ## Nodes
 
@@ -43,6 +53,8 @@ gets `talos://metal/<address>`.
 |---|---|
 | Overlay | Tailscale (WireGuard); kubelet and etcd register on `100.64.0.0/10` |
 | CNI | Kube-OVN, with `cluster.network.cni.name: none`. There is no Flannel in this cluster |
+| kube-proxy | iptables mode; Kube-OVN does not support the nftables default of Talos 1.14 |
+| DNS | CoreDNS from `k8s/coredns`, replacing the Talos-bundled one |
 | Multi-NIC | Multus |
 | Cloud VPC | a single private /24 |
 | Pod traffic between nodes | Geneve tunnels over the tailnet |
@@ -81,14 +93,20 @@ kept as swappable RouterOS scripts under `infra/crs504/`.
 
 | StorageClass | Backing | Scope |
 |---|---|---|
-| `local` (default) | Linstor / Piraeus | all nodes |
+| `local` (default) | Linstor / Piraeus, ZFS pool on the edge node's system disk | edge node |
 | `pd-standard` | cloud PD CSI | cloud nodes only; the node DaemonSet is pinned to `location=cloud` |
+
+Both classes carry the default annotation; `local` wins because it is the newer one.
 
 ## Installed components
 
-cert-manager, kube-ovn, multus, SR-IOV network operator, KubeVirt and CDI,
+cert-manager, kube-ovn, CoreDNS, multus, SR-IOV network operator, KubeVirt and CDI,
 Linstor/Piraeus, kube-prometheus-stack, Talos CCM, PD CSI, Tailscale operator, minio,
 gitea, kube-vim and OSM.
+
+OSM has one VIM account, `kubevim`, and the cluster itself registered as its Kubernetes
+cluster. Both are created through the OSM API after install, not by this repository; see
+[osm-smoke-test.md](osm-smoke-test.md).
 
 Two things that are not as they appear:
 
@@ -100,8 +118,8 @@ OSM's helm-based execution environments appear as extra Helm releases in UUID-na
 namespaces (`eechart-*`). They are managed by OSM and should not be removed by hand.
 
 Several components ship a separate `make servicemonitor` target that Helm does not apply
-(`kube-ovn`, `kubevirt`, `kubevirt-cdi`, `sriov-network-operator`, `multus`). Run those
-after the monitoring stack is up.
+(`kube-ovn`, `kubevirt`, `kubevirt-cdi`, `sriov-network-operator`). Run those after the
+monitoring stack is up.
 
 ## Deviations from the generic guide
 
@@ -114,6 +132,14 @@ have no effect.
 The ovs-cni image is pinned and should not be moved to `:latest`. A build published after
 2025-11-01 regressed VF discovery, which stops SR-IOV workloads from starting.
 
+The CDI controller is also a fork, pinned to its CDI release, so CDI stays on v1.65.0
+until the fork is rebased.
+
+KubeVirt's `ExternalNetResourceInjection` gate is disabled in the KubeVirt CR, so KubeVirt
+itself requests the VFs a NAD names; the SR-IOV operator's resources injector is not used.
+
 Upstream Helm charts are vendored rather than fetched at install time, so bumping one means
-re-pulling into `charts/` and committing the result. The wrapper chart versions are all
-`0.0.1` and carry no meaning; read `charts/` for the real upstream version.
+re-pulling into `charts/` and committing the result. Vendored charts are kept byte-identical
+to upstream; local changes live in values, overlays, or `patches/*.patch` applied by the
+chart's `update` target. The wrapper chart versions are all `0.0.1` and carry no meaning;
+read `charts/` for the real upstream version.
