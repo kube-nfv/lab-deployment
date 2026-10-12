@@ -1,3 +1,11 @@
+{{- /*
+ClusterRoles / Role partitioned by installMode:
+- system:ovn          : data plane (kube-ovn-controller, ic-controller)
+- system:ovn-ovs      : both planes (ovn-central in mgmt, ovs-ovn in tenant)
+- system:kube-ovn-cni : data plane
+- secret-reader-ovn-ipsec / system:kube-ovn-app : data plane
+*/}}
+{{- if include "kubeovn.renderDataPlane" . }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
@@ -107,6 +115,27 @@ rules:
       - list
       - watch
   - apiGroups:
+      - ""
+    resources:
+      - configmaps
+    verbs:
+      - create
+      - update
+      - patch
+      - delete
+  - apiGroups:
+      - monitoring.coreos.com
+    resources:
+      - servicemonitors
+    verbs:
+      - create
+      - get
+      - list
+      - watch
+      - update
+      - patch
+      - delete
+  - apiGroups:
       - apps
     resources:
       - daemonsets
@@ -151,6 +180,14 @@ rules:
       - discovery.k8s.io
     resources:
       - endpointslices
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - metallb.io
+    resources:
+      - servicel2statuses
     verbs:
       - get
       - list
@@ -237,6 +274,14 @@ rules:
     - get
     - create
   - apiGroups:
+    - ""
+    resources:
+    - secrets
+    resourceNames:
+    - kube-ovn-tls
+    verbs:
+    - update
+  - apiGroups:
     - certificates.k8s.io
     resourceNames:
     - kubeovn.io/signer
@@ -259,6 +304,7 @@ rules:
       - customresourcedefinitions
     verbs:
       - get
+{{- end }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
@@ -293,6 +339,7 @@ rules:
     verbs:
       - get
       - list
+{{- if include "kubeovn.renderDataPlane" . }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
@@ -422,3 +469,4 @@ rules:
       - subjectaccessreviews
     verbs:
       - create
+{{- end }}

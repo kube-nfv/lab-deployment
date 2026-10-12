@@ -1,4 +1,5 @@
-{{- if include "kubeovn.ovn.versionCompatibility" . -}}
+{{- if include "kubeovn.renderFullOnly" . }}
+{{- if include "kubeovn.ovn.upgradeNeeded" . -}}
 ---
 apiVersion: v1
 kind: ServiceAccount
@@ -130,3 +131,5 @@ spec:
           hostPath:
             path: {{ .Values.log_conf.LOG_DIR }}/kube-ovn
 {{- end -}}
+
+{{- end }}

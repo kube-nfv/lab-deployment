@@ -16,9 +16,11 @@ kind: KubeSchedulerConfig
 extraArgs:
   bind-address: 0.0.0.0
 ---
-# kube-proxy reads a config file; most command-line flags are ignored
+# kube-proxy reads a config file; most command-line flags are ignored.
+# Kube-OVN does not support kube-proxy's nftables mode.
 apiVersion: v1alpha1
 kind: KubeProxyConfig
+mode: iptables
 config:
   metricsBindAddress: 0.0.0.0:10249
 ---
