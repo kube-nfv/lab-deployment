@@ -29,6 +29,8 @@ Both run Kube-OVN and Linstor/Piraeus.
 - [02-setup/README.md](02-setup/README.md) - architecture and deployment walkthrough
 - [02-setup/docs/deployed-setup.md](02-setup/docs/deployed-setup.md) - versions and
   components the reference cluster runs
+- [02-setup/docs/network-boot.md](02-setup/docs/network-boot.md) - iPXE network boot over
+  mutual TLS, with a local Docker test path
 - [01-setup/README.md](01-setup/README.md) - the local PXE environment
 
 Addresses and hostnames in these documents are placeholders. The lab runs on cloud free

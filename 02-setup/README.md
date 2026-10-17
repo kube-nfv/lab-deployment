@@ -17,6 +17,8 @@ More documentation:
   re-provisioning a node or upgrading components
 - [docs/osm-smoke-test.md](docs/osm-smoke-test.md) - registering the cluster with OSM and
   the end-to-end tests, including SR-IOV traffic
+- [docs/network-boot.md](docs/network-boot.md) - iPXE network boot over mutual TLS, and a
+  local Docker path to test it
 
 Addresses, project names and node names below are placeholders written as `<…>`. The
 reference lab runs on cloud free tier with ephemeral external IPs, so literal values would
@@ -61,8 +63,9 @@ over the local network, once. An earlier design provisioned them automatically b
 boot against a cloud-hosted iPXE and machine-config service. That was not adopted: for a
 lab with one edge site it requires a PKI, two internet-facing services, control of the edge
 DHCP server, and an answer to how a node with no credentials proves its identity - all to
-replace a single `talosctl apply-config`. The trade-off changes with many sites, and the
-idea may return in a later setup.
+replace a single `talosctl apply-config`. The trade-off changes with many sites. The
+iPXE stage now has a local test path, see [docs/network-boot.md](docs/network-boot.md);
+edge nodes are still provisioned from the ISO.
 
 ## Prerequisites
 
@@ -207,6 +210,8 @@ Re-using a machine that already ran Talos is not this simple; see
 
 A KVM-based edge path using OVS, dnsmasq and libvirt is available under `infra/` for
 testing the join flow without hardware. It is not needed for a bare-metal edge node.
+Network boot through iPXE is tested separately under `infra/pxe/`, see
+[docs/network-boot.md](docs/network-boot.md).
 
 ## Phase 6 - Networking
 
@@ -310,7 +315,11 @@ terraform/    cloud VPC and instances (modules: infrastructure, talos-cluster)
 talos/        Makefile, patches/, schematics/, secrets.yaml
 k8s/<comp>/   one overlay per component; most use `make helm-upgrade`, some use kustomize
 infra/        optional KVM edge path: OVS, dnsmasq, libvirt
+infra/pxe/    iPXE network boot test path in Docker: dnsmasq, QEMU VM, stub script server
+tls/          private CA and iPXE server and client certificates (keys SOPS-encrypted)
+ipxe/         builds ipxe.efi with the CA and client certificate embedded
 tests/        connectivity, storage and SSH test manifests
 docs/         documentation
 _out/talos/   generated configs, kubeconfig, talosconfig (gitignored)
+_out/ipxe/    built ipxe.efi, contains the client key (gitignored)
 ```
