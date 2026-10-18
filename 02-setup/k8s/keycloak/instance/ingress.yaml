@@ -1,0 +1,18 @@
+# Keycloak on the tailnet as setup02-keycloak (Postman token requests, admin console).
+# The backend port is named https, so the Tailscale proxy speaks TLS to Keycloak.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: keycloak
+  annotations:
+    tailscale.com/proxy-class: default-proxy-class
+spec:
+  ingressClassName: tailscale
+  defaultBackend:
+    service:
+      name: keycloak-service
+      port:
+        name: https
+  tls:
+    - hosts:
+        - setup02-keycloak

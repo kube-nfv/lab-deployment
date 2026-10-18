@@ -1,0 +1,48 @@
+apiVersion: k8s.keycloak.org/v2beta1
+kind: Keycloak
+metadata:
+  name: keycloak
+spec:
+  instances: 1
+  db:
+    vendor: postgres
+    host: keycloak-postgres
+    database: keycloak
+    usernameSecret:
+      name: keycloak-db
+      key: username
+    passwordSecret:
+      name: keycloak-db
+      key: password
+  bootstrapAdmin:
+    user:
+      secret: keycloak-bootstrap-admin
+  http:
+    tlsSecret: keycloak-tls
+  # Fixed so every token's iss is the same for in-cluster clients, port-forwards and the
+  # tailnet; the admin console is served on the tailnet name
+  hostname:
+    hostname: https://keycloak-service.keycloak.svc:8443
+    admin: https://setup02-keycloak.tailac05db.ts.net
+  ingress:
+    enabled: false
+  resources:
+    requests:
+      cpu: 250m
+      memory: 1Gi
+    limits:
+      memory: 2Gi
+  scheduling:
+    affinity:
+      nodeAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
+          nodeSelectorTerms:
+            - matchExpressions:
+                - key: node.kubernetes.io/location
+                  operator: In
+                  values: ["cloud"]
+    tolerations:
+      - key: node.kubernetes.io/location
+        operator: Equal
+        value: cloud
+        effect: NoSchedule

@@ -1,0 +1,6 @@
+resources:
+  - namespace.yaml
+  - ../../../k8s/helm/keycloak-operator
+
+patches:
+  - path: patch-operator.yaml

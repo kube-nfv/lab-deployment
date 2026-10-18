@@ -1,0 +1,70 @@
+# Sets the master realm's frontend URL to the tailnet name, so the admin console's browser
+# login stays on setup02-keycloak; realm nfv keeps the in-cluster issuer kube-vim uses.
+# Idempotent; the TTL lets every apply re-run it.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: keycloak-master-frontend
+spec:
+  ttlSecondsAfterFinished: 300
+  backoffLimit: 10
+  template:
+    spec:
+      restartPolicy: OnFailure
+      nodeSelector:
+        node.kubernetes.io/location: cloud
+      tolerations:
+        - key: node.kubernetes.io/location
+          operator: Equal
+          value: cloud
+          effect: NoSchedule
+      securityContext:
+        runAsNonRoot: true
+        # curl_user in the curlimages image; a numeric UID lets the kubelet check non-root
+        runAsUser: 100
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: set-frontend
+          image: docker.io/curlimages/curl:8.11.1
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          env:
+            - name: FRONTEND_URL
+              value: https://setup02-keycloak.tailac05db.ts.net
+            - name: ADMIN_USER
+              valueFrom:
+                secretKeyRef:
+                  name: keycloak-bootstrap-admin
+                  key: username
+            - name: ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: keycloak-bootstrap-admin
+                  key: password
+          command:
+            - sh
+            - -euc
+            - |
+              KC=https://keycloak-service.keycloak.svc:8443
+              TOKEN=$(curl -sf --cacert /ca/ca.crt -d grant_type=password -d client_id=admin-cli \
+                --data-urlencode "username=$ADMIN_USER" --data-urlencode "password=$ADMIN_PASSWORD" \
+                "$KC/realms/master/protocol/openid-connect/token" | sed -n 's/.*"access_token":"\([^"]*\)".*/\1/p')
+              test -n "$TOKEN"
+              curl -sf --cacert /ca/ca.crt -X PUT -H "Authorization: Bearer $TOKEN" \
+                -H 'Content-Type: application/json' \
+                -d "{\"attributes\":{\"frontendUrl\":\"$FRONTEND_URL\"}}" "$KC/admin/realms/master"
+              echo "master frontendUrl = $FRONTEND_URL"
+          volumeMounts:
+            - name: ca
+              mountPath: /ca
+              readOnly: true
+      volumes:
+        - name: ca
+          secret:
+            secretName: keycloak-tls
+            items:
+              - key: ca.crt
+                path: ca.crt

@@ -1,0 +1,9 @@
+namespace: keycloak
+
+resources:
+  - postgres.yaml
+  - certificate.yaml
+  - keycloak.yaml
+  - realm-import.yaml
+  - ingress.yaml
+  - master-frontend-job.yaml

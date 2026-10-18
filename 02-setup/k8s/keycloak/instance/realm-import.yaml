@@ -1,0 +1,46 @@
+# Realm nfv: osm-ro gets client-credentials tokens with aud kube-vim; no-audience is the negative test
+apiVersion: k8s.keycloak.org/v2beta1
+kind: KeycloakRealmImport
+metadata:
+  name: nfv
+spec:
+  keycloakCRName: keycloak
+  placeholders:
+    OSM_RO_SECRET:
+      secret:
+        name: keycloak-clients
+        key: osm-ro
+    NO_AUDIENCE_SECRET:
+      secret:
+        name: keycloak-clients
+        key: no-audience
+  realm:
+    realm: nfv
+    enabled: true
+    clients:
+      - clientId: osm-ro
+        enabled: true
+        protocol: openid-connect
+        publicClient: false
+        clientAuthenticatorType: client-secret
+        secret: ${OSM_RO_SECRET}
+        serviceAccountsEnabled: true
+        standardFlowEnabled: false
+        directAccessGrantsEnabled: false
+        protocolMappers:
+          - name: kube-vim-audience
+            protocol: openid-connect
+            protocolMapper: oidc-audience-mapper
+            config:
+              included.custom.audience: kube-vim
+              access.token.claim: "true"
+              id.token.claim: "false"
+      - clientId: no-audience
+        enabled: true
+        protocol: openid-connect
+        publicClient: false
+        clientAuthenticatorType: client-secret
+        secret: ${NO_AUDIENCE_SECRET}
+        serviceAccountsEnabled: true
+        standardFlowEnabled: false
+        directAccessGrantsEnabled: false

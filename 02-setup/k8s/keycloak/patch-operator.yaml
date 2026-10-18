@@ -1,0 +1,15 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: keycloak-operator
+  namespace: keycloak
+spec:
+  template:
+    spec:
+      nodeSelector:
+        node.kubernetes.io/location: cloud
+      tolerations:
+        - key: node.kubernetes.io/location
+          operator: Equal
+          value: cloud
+          effect: NoSchedule
