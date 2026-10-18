@@ -316,8 +316,8 @@ talos/        Makefile, patches/, schematics/, secrets.yaml
 k8s/<comp>/   one overlay per component; most use `make helm-upgrade`, some use kustomize
 infra/        optional KVM edge path: OVS, dnsmasq, libvirt
 infra/pxe/    iPXE network boot test path in Docker: dnsmasq, QEMU VM, stub script server
-tls/          private CA and iPXE server and client certificates (keys SOPS-encrypted)
-ipxe/         builds ipxe.efi with the CA and client certificate embedded
+tls/          lab PKI: root, Boot and Cluster CAs, iPXE server and client certificates (keys SOPS-encrypted)
+ipxe/         builds ipxe.efi with the Boot CA and client certificate embedded
 tests/        connectivity, storage and SSH test manifests
 docs/         documentation
 _out/talos/   generated configs, kubeconfig, talosconfig (gitignored)

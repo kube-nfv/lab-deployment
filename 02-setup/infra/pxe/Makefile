@@ -92,8 +92,8 @@ test-server: network ## Run the nginx mTLS test server at $(TEST_IP) (needs test
 		-v $(CURDIR)/test-server.conf:/etc/nginx/conf.d/default.conf:ro -v $(TEST_OUT):/srv:ro \
 		nginx:1.27-alpine >/dev/null
 	tmp=$$(mktemp -d); trap 'rm -rf "$$tmp"' EXIT; \
-	cp $(TLS_DIR)/ca.crt "$$tmp/"; \
-	cat $(TLS_DIR)/ipxe-server.crt $(TLS_DIR)/ca.crt > "$$tmp/ipxe-server-chain.crt"; \
+	cat $(TLS_DIR)/boot-ca.crt $(TLS_DIR)/ca.crt > "$$tmp/client-ca.crt"; \
+	cat $(TLS_DIR)/ipxe-server.crt $(TLS_DIR)/boot-ca.crt > "$$tmp/ipxe-server-chain.crt"; \
 	(umask 077; sops -d --input-type binary --output-type binary $(TLS_DIR)/ipxe-server.key > "$$tmp/ipxe-server.key"); \
 	docker cp "$$tmp/." $(TEST_CONTAINER):/etc/nginx/tls
 	docker start $(TEST_CONTAINER) >/dev/null

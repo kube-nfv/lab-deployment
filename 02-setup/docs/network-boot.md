@@ -27,7 +27,7 @@ iPXE binary, iPXE itself gets the script URL.
 
 | Stage | Authentication |
 |---|---|
-| iPXE script and boot assets | Mutual TLS. The server certificate and a client certificate shared by all nodes of one edge site are issued by a private CA |
+| iPXE script and boot assets | Mutual TLS. The server certificate and a client certificate shared by all nodes of one edge site are issued by the Boot CA |
 | Machine config (`talos.config=`) | Not built yet. Planned: Talos machine config OAuth2 device flow, so an operator approves each node |
 
 The client certificate only shows that the request comes from a genuine iPXE binary for
@@ -35,7 +35,12 @@ that site. Anyone who can download the binary from the site's TFTP server can ex
 so it is not a node identity. The boot script and Talos assets carry nothing secret; the
 machine config does, which is why per-node approval belongs at that stage.
 
-iPXE trusts only fingerprints compiled into the binary (`TRUST=`), so the CA and the
+The lab has one private root CA with two intermediates: the Boot CA for network boot and
+the Cluster CA, which cert-manager holds to issue certificates inside the cluster. The
+root and Boot CA keys never enter the cluster. iPXE trusts the Boot CA, not the root, so
+a leaked Cluster CA key cannot impersonate the script server.
+
+iPXE trusts only fingerprints compiled into the binary (`TRUST=`), so the Boot CA and the
 client certificate cannot be delivered over DHCP. A node's serial number, UUID and MAC
 (`${serial}`, `${uuid}`, `${net0/mac}` in iPXE) can be sent to the script server to
 select what to boot, but the node reports them about itself, so they identify a node
@@ -45,8 +50,8 @@ without authenticating it.
 
 | Path | Contents |
 |---|---|
-| `tls/` | Private CA, iPXE script server certificate, iPXE client certificate. Keys are SOPS-encrypted in place. `make ca`, `make ipxe-server`, `make ipxe-client`, `make verify` |
-| `ipxe/` | Builds `_out/ipxe/<arch>/ipxe.efi` in Docker with `TRUST=ca.crt` and the client certificate and key embedded. `make build`, `ARCH=arm64` (default) or `x86_64` |
+| `tls/` | Root CA, Boot CA, Cluster CA, iPXE script server certificate, iPXE client certificate. Keys are SOPS-encrypted in place. `make ca`, `make boot-ca`, `make cluster-ca`, `make ipxe-server`, `make ipxe-client`, `make verify` |
+| `ipxe/` | Builds `_out/ipxe/<arch>/ipxe.efi` in Docker with `TRUST=boot-ca.crt` and the client certificate and key embedded. `make build`, `ARCH=arm64` (default) or `x86_64` |
 | `infra/pxe/` | Docker network, dnsmasq, a network-booting arm64 QEMU VM, and an nginx stand-in for the script server |
 
 The built `ipxe.efi` contains the client private key unencrypted. It lives under `_out/`,
@@ -101,12 +106,13 @@ docker run --network setup02-pxe --ip 10.0.20.3 ...
 It must:
 
 - serve HTTPS on port 443 for `ipxe.setup02.local`, with the `ipxe-server` certificate;
-- send the CA certificate after the leaf. iPXE holds only the CA fingerprint, and without
-  the CA in the chain it tries to fetch a cross-signed certificate from `ca.ipxe.org`
-  and stalls at `[XCRT ...]`;
-- require a client certificate and verify it against `tls/ca.crt`;
-- serve the kernel and initramfs itself, or from another host whose certificate chains to
-  the same CA. iPXE trusts nothing else, so Image Factory URLs cannot be used directly.
+- send the Boot CA certificate after the leaf. iPXE holds only the Boot CA fingerprint,
+  and without it in the chain iPXE tries to fetch a cross-signed certificate from
+  `ca.ipxe.org` and stalls at `[XCRT ...]`;
+- require a client certificate, verify it against `tls/boot-ca.crt` plus `tls/ca.crt`, and
+  accept only clients issued by the Boot CA, since the root also signs the Cluster CA;
+- serve the kernel and initramfs itself, or from another host whose certificate is issued
+  by the Boot CA. iPXE trusts nothing else, so Image Factory URLs cannot be used directly.
 
 Relative URLs in `boot.ipxe` resolve against the script's own URL.
 

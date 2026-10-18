@@ -28,7 +28,7 @@ help: ## Display this help
 build: ## Build _out/ipxe/$(ARCH)/ipxe.efi (ARCH=arm64|x86_64)
 	mkdir -p $(OUT_DIR)
 	tmp=$$(mktemp -d); trap 'rm -rf "$$tmp"' EXIT; umask 077; \
-	cp $(TLS_DIR)/ca.crt $(TLS_DIR)/ipxe-client.crt "$$tmp/"; \
+	cp $(TLS_DIR)/boot-ca.crt $(TLS_DIR)/ipxe-client.crt "$$tmp/"; \
 	sops -d --input-type binary --output-type binary $(TLS_DIR)/ipxe-client.key > "$$tmp/ipxe-client.key"; \
 	chmod 644 "$$tmp"/*; chmod 755 "$$tmp"; \
 	docker run --rm --platform $(PLATFORM) -v "$$tmp":/tls:ro -v $(OUT_DIR):/out \
@@ -39,7 +39,7 @@ build: ## Build _out/ipxe/$(ARCH)/ipxe.efi (ARCH=arm64|x86_64)
 		cd /ipxe/src; \
 		echo "#define DOWNLOAD_PROTO_HTTPS" > config/local/general.h; \
 		make -s -j$$(nproc) bin-$(ARCH)-efi/ipxe.efi \
-			TRUST=/tls/ca.crt CERT=/tls/ipxe-client.crt PRIVKEY=/tls/ipxe-client.key; \
+			TRUST=/tls/boot-ca.crt CERT=/tls/ipxe-client.crt PRIVKEY=/tls/ipxe-client.key; \
 		cp bin-$(ARCH)-efi/ipxe.efi /out/ipxe.efi'
 	@echo "✓ $(OUT_DIR)/ipxe.efi"
 
