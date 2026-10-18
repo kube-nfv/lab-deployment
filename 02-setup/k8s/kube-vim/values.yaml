@@ -1,4 +1,9 @@
 kube-vim:
+  global:
+    image:
+      # Dev build of kube-vim#48 (OAuth 2.0 auth); back to the chart appVersion once released
+      tag: dev-c89995e-oidc
+
   vim:
     image:
       pullPolicy: Always
@@ -16,7 +21,19 @@ kube-vim:
       annotations:
         tailscale.com/proxy-class: default-proxy-class
         tailscale.com/hostname: setup02-kube-vim-grpc
-    
+
+    # Certificates from certificates.yaml (lab-ca ClusterIssuer)
+    tls:
+      secretName: kube-vim-tls
+
+    # Bearer tokens from the Keycloak nfv realm (k8s/keycloak). Its CA is the lab root,
+    # the same ca.crt as kube-vim-tls.
+    auth:
+      enabled: true
+      issuer: https://keycloak-service.keycloak.svc:8443/realms/nfv
+      audience: kube-vim
+      issuerCASecretName: kube-vim-tls
+
     metrics:
       serviceMonitor:
         enabled: true
@@ -51,6 +68,14 @@ kube-vim:
       operator: Equal
       value: cloud
       effect: NoSchedule
+
+    tls:
+      secretName: kube-vim-gateway-tls
+
+    # Port 443 makes the Tailscale ingress proxy speak TLS to the gateway; the pod stays on 8080
+    service:
+      port: 443
+      portName: https
 
     ingress:
       enabled: true

@@ -1,0 +1,43 @@
+# Server certificates for kube-vim and its gateway, from the lab-ca ClusterIssuer
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: kube-vim
+  namespace: kube-vim
+spec:
+  secretName: kube-vim-tls
+  privateKey:
+    algorithm: ECDSA
+    size: 256
+  dnsNames:
+    - kube-vim
+    - kube-vim.kube-vim.svc
+    - kube-vim.kube-vim.svc.cluster.local
+    - setup02-kube-vim-grpc.tailac05db.ts.net
+  usages:
+    - server auth
+  issuerRef:
+    name: lab-ca
+    kind: ClusterIssuer
+    group: cert-manager.io
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: kube-vim-gateway
+  namespace: kube-vim
+spec:
+  secretName: kube-vim-gateway-tls
+  privateKey:
+    algorithm: ECDSA
+    size: 256
+  dnsNames:
+    - kube-vim-gateway
+    - kube-vim-gateway.kube-vim.svc
+    - kube-vim-gateway.kube-vim.svc.cluster.local
+  usages:
+    - server auth
+  issuerRef:
+    name: lab-ca
+    kind: ClusterIssuer
+    group: cert-manager.io

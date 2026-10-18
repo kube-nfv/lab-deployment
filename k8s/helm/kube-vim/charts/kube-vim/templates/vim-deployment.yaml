@@ -54,6 +54,16 @@ spec:
         - name: config
           mountPath: /etc/kube-vim
           readOnly: true
+        {{- if .Values.vim.tls.secretName }}
+        - name: tls
+          mountPath: /etc/kube-vim/tls
+          readOnly: true
+        {{- end }}
+        {{- if and .Values.vim.auth.enabled .Values.vim.auth.issuerCASecretName }}
+        - name: idp-ca
+          mountPath: /etc/kube-vim/idp-ca
+          readOnly: true
+        {{- end }}
         env:
         - name: POD_NAMESPACE
           valueFrom:
@@ -68,6 +78,19 @@ spec:
       - name: config
         configMap:
           name: {{ include "kube-vim.vim.name" . }}-config
+      {{- if .Values.vim.tls.secretName }}
+      - name: tls
+        secret:
+          secretName: {{ .Values.vim.tls.secretName }}
+      {{- end }}
+      {{- if and .Values.vim.auth.enabled .Values.vim.auth.issuerCASecretName }}
+      - name: idp-ca
+        secret:
+          secretName: {{ .Values.vim.auth.issuerCASecretName }}
+          items:
+          - key: ca.crt
+            path: ca.crt
+      {{- end }}
       {{- with .Values.vim.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
