@@ -10,10 +10,17 @@ OSM needs three things: a VIM account for kube-vim, the Kubernetes cluster for K
 VM images.
 
 ```sh
+cat > vim-config.yaml <<EOF
+management_network_name: osm-mgmt
+token_url: https://keycloak-service.keycloak.svc:8443/realms/nfv/protocol/openid-connect/token
+ca_cert_content: |
+$(sed 's/^/  /' tls/ca.crt)
+EOF
+
 osm vim-create --name kubevim --account_type kubevim \
-  --auth_url http://kube-vim-gateway.kube-vim.svc.cluster.local:8080 \
-  --user unused --password unused --tenant unused \
-  --config '{management_network_name: osm-mgmt}'
+  --auth_url https://kube-vim-gateway.kube-vim.svc \
+  --user osm-ro --password <client-secret> --tenant unused \
+  --config_file vim-config.yaml
 
 osm k8scluster-add <cluster-name> --creds <kubeconfig> --vim kubevim \
   --k8s-nets '{net1: osm-mgmt}' --version <kubernetes-version> \
@@ -21,16 +28,23 @@ osm k8scluster-add <cluster-name> --creds <kubeconfig> --vim kubevim \
 ```
 
 - The URL is the kube-vim REST gateway as RO sees it from inside the cluster.
-- The kubevim plugin ignores user, password and tenant, but OSM requires them.
+- User and password are the OAuth 2.0 client ID and secret of RO's client in the IdP (the
+  `osm-ro` client of the Keycloak `nfv` realm, secret in `keycloak/keycloak-clients`). The
+  plugin fetches client-credentials tokens from `token_url`; `issuer` in its place finds
+  the endpoint through OIDC discovery. With neither, the plugin sends no token and ignores
+  user and password. The tenant is unused, but OSM requires it.
+- `ca_cert_content` is the lab root CA, which signs both the gateway and the Keycloak
+  certificates; RO writes it to a file and verifies both against it.
 - `management_network_name` maps every VLD marked `mgmt-network: true` onto the management
   network that kube-vim provisions, which RO is attached to.
 - The kubeconfig's server must be reachable from the LCM pod; the Tailscale address is.
 
 VM images are imported through kube-vim's admin gRPC API, which the REST gateway does not
-expose. The server has reflection enabled, so `grpcurl` needs no proto files:
+expose. The server has reflection enabled, so `grpcurl` needs no proto files. It needs the
+lab root CA and an access token for the same client, since reflection is authenticated too:
 
 ```sh
-grpcurl -plaintext -d '{
+grpcurl -cacert tls/ca.crt -H "authorization: Bearer $TOKEN" -d '{
   "metadata": {"name": "focal-server-cloudimg-amd64"},
   "source": {"type": "HTTP", "http": {"url": "https://cloud-images.ubuntu.com/focal/current/focal-server-cloudimg-amd64.img"}}
 }' <kube-vim-grpc-host>:50051 admin.kubevim.kubenfv.api.pb.admin/DownloadImage

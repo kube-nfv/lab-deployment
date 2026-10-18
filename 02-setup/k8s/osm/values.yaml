@@ -124,7 +124,7 @@ osm:
   ro:
     image:
       repository: ghcr.io/kube-nfv/osm-ro
-      tag: master-d9ca4ca
+      tag: master-4b061ac
       pullPolicy: IfNotPresent
     # Attach RO to the kube-vim-managed shared mgmt subnet so it can SSH into
     # VMs at their mgmt IPs (inject_ssh_key). The two annotations work together:
