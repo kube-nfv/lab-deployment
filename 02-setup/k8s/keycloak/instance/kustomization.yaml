@@ -7,3 +7,4 @@ resources:
   - realm-import.yaml
   - ingress.yaml
   - master-frontend-job.yaml
+  - nfv-scopes-job.yaml
