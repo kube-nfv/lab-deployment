@@ -1,8 +1,8 @@
 kube-vim:
   global:
     image:
-      # Dev build of kube-vim#48 (OAuth 2.0 auth); back to the chart appVersion once released
-      tag: dev-c89995e-oidc
+      # Dev build of kube-vim#51 (v1 API); back to the chart appVersion once released
+      tag: dev-85f1e69-v1
 
   vim:
     image:
