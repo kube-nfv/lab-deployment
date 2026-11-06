@@ -80,19 +80,21 @@ generator port 0 ──► PF0 ──► VF (10.10.0.1) ─┐
 generator port 1 ◄── PF1 ◄── VF (10.20.0.1) ─┘
 ```
 
-OSM ignores `provider-network` in the NSD, so the VF pools are given at instantiation:
+OSM ignores `provider-network` in the NSD, so the provider networks and VF pools are given at
+instantiation, as `<provider network>/<pool>`:
 
 ```sh
 osm vnfpkg-create sriov_router_vnf.tar.gz
 osm nspkg-create  sriov_router_ns.tar.gz
 osm ns-create --ns_name smoke-router --nsd_name sriov-router-ns --vim_account kubevim --wait \
   --config '{vld: [
-    {name: upstream,   provider-network: {physical-network: <pf0-vfio-pool>, network-type: sriov}},
-    {name: downstream, provider-network: {physical-network: <pf1-vfio-pool>, network-type: sriov}}]}'
+    {name: upstream,   provider-network: {physical-network: mx5p0/mlx_vf_pf0_vfio, network-type: sriov}},
+    {name: downstream, provider-network: {physical-network: mx5p1/mlx_vf_pf1_vfio, network-type: sriov}}]}'
 ```
 
 Use the `vfio` pools: KubeVirt passes the VF to the guest with VFIO, and the guest's `mlx5`
-driver binds it.
+driver binds it. Each pool must be on its provider network's PF: kube-vim does not check this,
+and a mismatch puts the VF on the wrong uplink without an error.
 
 Then send UDP from port 0 to an address behind port 1, with the router's upstream VF MAC as
 next hop. Two things the generator must get right:
