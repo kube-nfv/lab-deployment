@@ -124,7 +124,7 @@ osm:
   ro:
     image:
       repository: ghcr.io/kube-nfv/osm-ro
-      tag: master-4b061ac
+      tag: master-39252a0
       pullPolicy: IfNotPresent
     # Attach RO to the kube-vim-managed shared mgmt subnet so it can SSH into
     # VMs at their mgmt IPs (inject_ssh_key). The two annotations work together:
@@ -173,7 +173,7 @@ osm:
 
   airflow:
     defaultAirflowRepository: ghcr.io/kube-nfv/osm-ng-sa
-    defaultAirflowTag: "v1.19.0"
+    defaultAirflowTag: "dev-e55320b"
     ingress:
       web:
         ingressClassName: tailscale
