@@ -39,19 +39,23 @@ osm k8scluster-add <cluster-name> --creds <kubeconfig> --vim kubevim \
   network that kube-vim provisions, which RO is attached to.
 - The kubeconfig's server must be reachable from the LCM pod; the Tailscale address is.
 
-VM images are imported through kube-vim's admin gRPC API, which the REST gateway does not
-expose. The server has reflection enabled, so `grpcurl` needs no proto files. It needs the
-lab root CA and an access token for the same client, since reflection is authenticated too:
+VM images are imported through kube-vim's image API. The server has reflection enabled, so
+`grpcurl` needs no proto files. It needs the lab root CA and an access token for the same
+client, since reflection is authenticated too:
 
 ```sh
 grpcurl -cacert tls/ca.crt -H "authorization: Bearer $TOKEN" -d '{
-  "metadata": {"name": "focal-server-cloudimg-amd64"},
-  "source": {"type": "HTTP", "http": {"url": "https://cloud-images.ubuntu.com/focal/current/focal-server-cloudimg-amd64.img"}}
-}' <kube-vim-grpc-host>:50051 admin.kubevim.kubenfv.api.pb.admin/DownloadImage
+  "image": {
+    "name": "focal-server-cloudimg-amd64",
+    "source": {"http": {"url": "https://cloud-images.ubuntu.com/focal/current/focal-server-cloudimg-amd64.img"}},
+    "importPolicy": "IMPORT_POLICY_EAGER"
+  }
+}' <kube-vim-grpc-host>:50051 kubenfv.kubevim.image.v1.ImageService/CreateImage
 ```
 
 The name must equal the `image` of the VNFD's `vim-type: kubevim` `sw-image-desc`. CDI
-imports it into a DataVolume; it is usable when the DataVolume reaches `Succeeded`.
+imports it in the background; it is usable when `ListImages` reports `status` as
+`IMAGE_STATUS_AVAILABLE`.
 
 ## Management network test - hackfest_basic
 
