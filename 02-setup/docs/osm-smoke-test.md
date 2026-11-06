@@ -88,8 +88,8 @@ osm vnfpkg-create sriov_router_vnf.tar.gz
 osm nspkg-create  sriov_router_ns.tar.gz
 osm ns-create --ns_name smoke-router --nsd_name sriov-router-ns --vim_account kubevim --wait \
   --config '{vld: [
-    {name: upstream,   provider-network: {physical-network: mx5p0/mlx_vf_pf0_vfio, network-type: sriov}},
-    {name: downstream, provider-network: {physical-network: mx5p1/mlx_vf_pf1_vfio, network-type: sriov}}]}'
+    {name: upstream,   provider-network: {physical-network: <pf0-provider>/<pf0-vfio-pool>, network-type: sriov}},
+    {name: downstream, provider-network: {physical-network: <pf1-provider>/<pf1-vfio-pool>, network-type: sriov}}]}'
 ```
 
 Use the `vfio` pools: KubeVirt passes the VF to the guest with VFIO, and the guest's `mlx5`
