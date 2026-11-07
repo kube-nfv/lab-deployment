@@ -1,8 +1,8 @@
 kube-vim:
   global:
     image:
-      # Dev build of kube-vim#51 (v1 API); back to the chart appVersion once released
-      tag: dev-9138bff-v1
+      # Pre-release under lab test; back to the chart appVersion once v0.1.0 is released
+      tag: 0.1.0-alpha.1
 
   vim:
     image:
