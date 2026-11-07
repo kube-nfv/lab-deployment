@@ -15,8 +15,8 @@ cloud CLI, rather than copied from a document.
 | Talos Linux | v1.14.2 |
 | Kubernetes | v1.36.2 |
 | containerd | 2.3.6 |
-| Open vSwitch | 3.5.5 |
-| Kube-OVN | v1.16.13 |
+| Open vSwitch | 3.7.2 |
+| Kube-OVN | v1.17.0 |
 | Multus | v4.3.1 (thick) |
 | KubeVirt | v1.9.0 |
 | CDI | v1.65.0, with a forked controller |

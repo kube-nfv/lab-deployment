@@ -8,11 +8,11 @@ global:
   images:
     kubeovn:
       repository: kube-ovn
-      tag: v1.16.13
+      tag: v1.17.0
     natgateway:
       repository: vpc-nat-gateway
       # Falls back to the same tag as kubeovn if empty
-      tag: v1.16.13
+      tag: v1.17.0
 
 image:
   pullPolicy: IfNotPresent
@@ -29,8 +29,9 @@ OVN_CENTRAL_MODE: "cluster"
 
 # installMode controls which slice of the chart this Helm release renders.
 #   full:             all components in one cluster (default, classic install).
-#   controlPlaneOnly: only ovn-central + ovn-nb/ovn-sb/ovn-northd Services and
-#                     their RBAC. Use on the management cluster of a
+#   controlPlaneOnly: ovn-central + ovn-nb/ovn-sb/ovn-northd Services and
+#                     their RBAC, plus the independent diagnostics agent.
+#                     Use on the management cluster of a
 #                     split-cluster deployment that hosts ovn-central.
 #   dataPlaneOnly:    CRDs + kube-ovn-controller + kube-ovn-cni + ovs-ovn +
 #                     pinger and their RBAC. Use on tenant data-plane
@@ -78,11 +79,20 @@ networking:
   # Namespace where ovn-external-gw-config ConfigMap is located.
   # Default is empty, which means it will use the same namespace as the controller (PodNamespace).
   EXTERNAL_GATEWAY_CONFIG_NS: ""
+  # The name of the external gateway switch (OVS bridge providing external network).
+  # Default is empty, which means the default "external" is used.
+  EXTERNAL_GATEWAY_SWITCH: ""
   DEFAULT_SUBNET: "ovn-default"
   DEFAULT_VPC: "ovn-cluster"
   NODE_SUBNET: "join"
   ENABLE_ECMP: false
   ENABLE_METRICS: true
+  # Gateway netfilter backend: auto, iptables, or nftables; leave empty to use the daemon default of auto.
+  GATEWAY_NETFILTER_MODE: ""
+  # Local kube-proxy proxyMode endpoint; leave empty to use the daemon default endpoint.
+  KUBE_PROXY_MODE_ENDPOINT: ""
+  # Maximum time to wait for the kube-proxy mode during cold start; leave empty to use the daemon default of 30s.
+  GATEWAY_NETFILTER_DETECT_TIMEOUT: ""
   # comma-separated string of nodelocal DNS ip addresses
   NODE_LOCAL_DNS_IP: ""
   # comma-separated list of destination IP CIDRs that should skip conntrack processing
@@ -96,12 +106,18 @@ networking:
   ENABLE_COMPACT: false
 
 func:
+  # Two combinations are rejected at controller startup: ENABLE_LB_SVC with ENABLE_GW_NFTABLE_LB_SVC
+  # (both own the ingress IP of a LoadBalancer Service), and ENABLE_GW_NFTABLE_SVC_CLUSTER_IP with
+  # ENABLE_LB (both own the ClusterIP data plane). Everything else combines; ENABLE_LB_SVC needs a
+  # ClusterIP data plane behind it, either ENABLE_LB or ENABLE_GW_NFTABLE_SVC_CLUSTER_IP.
   ENABLE_LB: true
   ENABLE_NP: true
   NP_ENFORCEMENT: standard
   ENABLE_EXTERNAL_VPC: false
   HW_OFFLOAD: false
   ENABLE_LB_SVC: false
+  ENABLE_GW_NFTABLE_LB_SVC: false
+  ENABLE_GW_NFTABLE_SVC_CLUSTER_IP: false
   ENABLE_KEEP_VM_IP: true
   LS_DNAT_MOD_DL_DST: true
   LS_CT_SKIP_DST_LPORT_IPS: true
@@ -111,16 +127,18 @@ func:
   SECURE_SERVING: false
   U2O_INTERCONNECTION: false
   ENABLE_TPROXY: false
+  ENABLE_RECOMPUTE: false
   ENABLE_IC: false
   ENABLE_NAT_GW: true
   ENABLE_OVN_IPSEC: false
   ENABLE_ANP: false
   ENABLE_DNS_NAME_RESOLVER: false
+  SET_GENEVE_TX_OFF: false
   SET_VXLAN_TX_OFF: false
+  HOST_TUNNEL_SRC: false
   OVSDB_CON_TIMEOUT: 3
   OVSDB_INACTIVITY_TIMEOUT: 10
   ENABLE_LIVE_MIGRATION_OPTIMIZE: true
-  ENABLE_OVN_LB_PREFER_LOCAL: false
 
 # Experimental OVN ACL sampling for NetworkPolicy events.
 aclSampling:
@@ -161,7 +179,6 @@ dual_stack:
 performance:
   GC_INTERVAL: 360
   INSPECT_INTERVAL: 20
-  OVS_VSCTL_CONCURRENCY: 100
 
 debug:
   ENABLE_MIRROR: false
@@ -169,6 +186,8 @@ debug:
 
 cni_conf:
   CNI_CONFIG_PRIORITY: "01"
+  # Whether to install the bundled CNI plugins besides kube-ovn.
+  INSTALL_CNI_PLUGINS: true
   CNI_CONF_DIR: "/etc/cni/net.d"
   MOUNT_CNI_CONF_DIR: "/etc/cni/net.d"
   CNI_BIN_DIR: "/opt/cni/bin"
@@ -195,7 +214,7 @@ fullnameOverride: ""
 HYBRID_DPDK: false
 HUGEPAGE_SIZE_TYPE: hugepages-2Mi  # Default
 HUGEPAGES: 1Gi
-DPDK_IMAGE_TAG: "v1.16.13-dpdk"
+DPDK_IMAGE_TAG: "v1.16.0-dpdk"
 DPDK_CPU: "1000m"  # Default CPU configuration
 DPDK_MEMORY: "2Gi"  # Default Memory configuration
 
@@ -299,6 +318,7 @@ kube-ovn-pinger:
     memory: "400Mi"
     ephemeral-storage: 1Gi
 kube-ovn-monitor:
+  replicas: 1
   requests:
     cpu: "200m"
     memory: "200Mi"
@@ -306,3 +326,19 @@ kube-ovn-monitor:
     cpu: "200m"
     memory: "200Mi"
     ephemeral-storage: 1Gi
+
+# Dedicated node IPsec container, rendered when the existing IPsec feature is enabled.
+ipsec:
+  certManager:
+    enabled: false
+    issuerName: kube-ovn
+  certificateDuration: 63072000
+  requestTimeout: 300s
+  priority: -5
+  resources:
+    requests:
+      cpu: 10m
+      memory: 64Mi
+    limits:
+      cpu: 1000m
+      memory: 256Mi
