@@ -1,8 +1,8 @@
 kube-vim:
   global:
     image:
-      # Pre-release under lab test; back to the chart appVersion once v0.1.0 is released
-      tag: 0.1.0-alpha.1
+      # Dev build of kube-vim#60 (Kube-OVN v1.17.0); back to the chart appVersion once v0.1.0 is released
+      tag: dev-849d443-kube-ovn-1.17
 
   vim:
     image:
