@@ -138,18 +138,6 @@ TLS arguments for kube-ovn components that expose HTTPS endpoints.
 {{- end -}}
 
 {{/*
-Kube-OVN TLS is owned by the management cluster in dataPlaneOnly installs.
-Disable local rotation there so a tenant cluster cannot replace the shared CA.
-*/}}
-{{- define "kubeovn.kubeOVNTLSRotationInterval" -}}
-{{- if eq .Values.installMode "dataPlaneOnly" -}}
-0
-{{- else -}}
-{{ .Values.networking.KUBE_OVN_TLS_ROTATION_INTERVAL }}
-{{- end -}}
-{{- end -}}
-
-{{/*
 Replica count for the kube-ovn-controller Deployment.
 dataPlaneOnly runs against a hosted ovn-central, so cap controller
 replicas at two while allowing single-node clusters to run one.
@@ -296,6 +284,18 @@ true
 {{- end -}}
 
 {{/*
+Kube-OVN TLS is owned by the management cluster in dataPlaneOnly installs.
+Disable local rotation there so a tenant cluster cannot replace the shared CA.
+*/}}
+{{- define "kubeovn.kubeOVNTLSRotationInterval" -}}
+{{- if eq .Values.installMode "dataPlaneOnly" -}}
+0
+{{- else -}}
+{{ .Values.networking.KUBE_OVN_TLS_ROTATION_INTERVAL }}
+{{- end -}}
+{{- end -}}
+
+{{/*
 Determine the updateStrategy type for the ovs-ovn DaemonSet.
 If ovs-ovn.updateStrategy.type is set, use it directly.
 Otherwise, auto-detect based on the currently deployed DaemonSet.
@@ -346,9 +346,5 @@ Otherwise, auto-detect based on the currently deployed DaemonSet.
 {{- end -}}
 
 {{- define "kubeovn.runAsUser" -}}
-  {{- if $.Values.func.ENABLE_OVN_IPSEC -}}
-    0
-  {{- else -}}
-    65534
-  {{- end -}}
+  65534
 {{- end -}}

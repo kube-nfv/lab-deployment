@@ -5,6 +5,14 @@ metadata:
 spec:
   config:
     scratchSpaceStorageClass: local
+    # Default 600M memory limit OOMKills the upload server on block-volume clones: dirty page cache fills it
+    podResourceRequirements:
+      requests:
+        cpu: 100m
+        memory: 60M
+      limits:
+        cpu: 750m
+        memory: 2Gi
     featureGates:
     - HonorWaitForFirstConsumer
     - WebhookPvcRendering

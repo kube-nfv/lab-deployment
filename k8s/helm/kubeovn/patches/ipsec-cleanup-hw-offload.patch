@@ -1,0 +1,11 @@
+--- a/charts/kube-ovn/templates/ovncni-ds.yaml
++++ b/charts/kube-ovn/templates/ovncni-ds.yaml
+@@ -101,7 +101,7 @@
+           - mountPath: /usr/local/bin
+             name: local-bin
+           {{- end }}
+-      {{- if not .Values.func.ENABLE_OVN_IPSEC }}
++      {{- if not (or .Values.func.ENABLE_OVN_IPSEC .Values.func.HW_OFFLOAD) }}
+       - name: ipsec-cleanup
+         image: {{ .Values.global.registry.address }}/{{ .Values.global.images.kubeovn.repository }}:{{ .Values.global.images.kubeovn.tag }}
+         imagePullPolicy: {{ .Values.image.pullPolicy }}

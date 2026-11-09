@@ -7,3 +7,4 @@ update:
 	curl -sSL https://github.com/kubeovn/kube-ovn/archive/refs/tags/$${tag}.tar.gz | \
 	tar xzvf - --strip 2 kube-ovn-$${tag#*v}/charts/kube-ovn && \
 	mkdir -p charts && mv kube-ovn charts/
+	patch --no-backup-if-mismatch -p 1 < patches/ipsec-cleanup-hw-offload.patch
